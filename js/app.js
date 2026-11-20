@@ -5,6 +5,11 @@
   const MTC = window.MTC;
   const G = MTC.gen;
   const P = MTC.project;
+  const t = (text, vars) => MTC.i18n.t(text, vars);
+  const locale = () => (MTC.i18n.getLang() === 'en' ? 'en-GB' : 'fr-FR');
+  function plural(n, one, many, vars) {
+    return t(n > 1 ? many : one, Object.assign({ n }, vars || {}));
+  }
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -91,14 +96,14 @@
   function log(message, level = '') {
     const line = document.createElement('div');
     line.className = 'log-line ' + level;
-    const time = new Date().toLocaleTimeString('fr-FR', { hour12: false });
+    const time = new Date().toLocaleTimeString(locale(), { hour12: false });
     line.innerHTML = `<span class="t">${time}</span><span class="m">${esc(message)}</span>`;
     els.consoleLog.appendChild(line);
     els.consoleLog.scrollTop = els.consoleLog.scrollHeight;
     while (els.consoleLog.children.length > 500) els.consoleLog.removeChild(els.consoleLog.firstChild);
-    if (level === 'err') els.consoleLevel.textContent = 'erreur';
-    else if (level === 'warn') els.consoleLevel.textContent = 'avertissement';
-    else els.consoleLevel.textContent = 'prêt';
+    if (level === 'err') els.consoleLevel.textContent = t('erreur');
+    else if (level === 'warn') els.consoleLevel.textContent = t('avertissement');
+    else els.consoleLevel.textContent = t('prêt');
   }
 
   function toast(message, kind = '') {
@@ -142,23 +147,23 @@
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       const ok = P.save(state.project);
-      if (!ok) log('Sauvegarde locale impossible (stockage plein ?). Pensez à exporter votre projet.', 'warn');
+      if (!ok) log(t('Sauvegarde locale impossible (stockage plein ?). Pensez à exporter votre projet.'), 'warn');
       stampSave(ok);
     }, 650);
   }
 
   function stampSave(ok = true) {
     if (!els.saveState) return;
-    const t = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    els.saveState.textContent = ok ? `Enregistré à ${t}` : 'Sauvegarde impossible';
+    const time = new Date().toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
+    els.saveState.textContent = ok ? t('Enregistré à {time}', { time }) : t('Sauvegarde impossible');
   }
 
   function saveProject(silent) {
     const ok = P.save(state.project);
     stampSave(ok);
     if (!silent) {
-      log(ok ? 'Projet enregistré dans le navigateur.' : 'Échec de la sauvegarde locale.', ok ? 'ok' : 'err');
-      toast(ok ? 'Projet enregistré' : 'Sauvegarde impossible', ok ? '' : 'err');
+      log(t(ok ? 'Projet enregistré dans le navigateur.' : 'Échec de la sauvegarde locale.'), ok ? 'ok' : 'err');
+      toast(t(ok ? 'Projet enregistré' : 'Sauvegarde impossible'), ok ? '' : 'err');
     }
   }
 
@@ -180,11 +185,15 @@
 
   function renderChip() {
     const p = state.project;
-    const counts = P.TYPES;
     const total = p.elements.length;
+    const textures = Object.keys(p.textures || {}).length;
     els.projectChip.innerHTML = `
       <div class="mod-name">${esc(p.meta.title || p.meta.modName)}</div>
-      <div class="mod-sub">${esc(p.meta.modName)} · ${total} élément${total > 1 ? 's' : ''} · ${Object.keys(p.textures || {}).length} texture(s)</div>
+      <div class="mod-sub">${esc(p.meta.modName)} · ${plural(total, '{n} élément', '{n} éléments')} · ${plural(
+      textures,
+      '{n} texture',
+      '{n} textures'
+    )}</div>
     `;
   }
 
@@ -193,7 +202,7 @@
     const isActive = (kind, id) => state.active.kind === kind && (id == null || state.active.id === id);
     parts.push(
       `<div class="tab ${isActive('workspace') ? 'active' : ''}" role="button" tabindex="0" data-action="goto-workspace">
-        <span class="tab-kind">Espace</span> Éléments
+        <span class="tab-kind">${t('Espace')}</span> ${t('Éléments')}
       </div>`
     );
     for (const tab of state.tabs) {
@@ -201,19 +210,19 @@
         const el = P.find(state.project, tab.id);
         if (!el) continue;
         parts.push(`<div class="tab ${isActive('element', tab.id) ? 'active' : ''}" role="button" tabindex="0" data-action="select-tab" data-kind="element" data-id="${el.id}">
-          <span class="tab-kind">${esc(P.TYPES[el.type].label)}</span>
+          <span class="tab-kind">${esc(t(P.TYPES[el.type].label))}</span>
           <span>${esc(el.props.title || el.name)}</span>
-          <button type="button" class="tab-close" data-action="close-tab" data-kind="element" data-id="${el.id}" title="Fermer">×</button>
+          <button type="button" class="tab-close" data-action="close-tab" data-kind="element" data-id="${el.id}" title="${esc(t('Fermer'))}">×</button>
         </div>`);
       } else if (tab.kind === 'textures') {
         parts.push(`<div class="tab ${isActive('textures') ? 'active' : ''}" role="button" tabindex="0" data-action="select-tab" data-kind="textures">
-          <span class="tab-kind">Ressources</span><span>Textures</span>
-          <button type="button" class="tab-close" data-action="close-tab" data-kind="textures" title="Fermer">×</button>
+          <span class="tab-kind">${t('Ressources')}</span><span>${t('Textures')}</span>
+          <button type="button" class="tab-close" data-action="close-tab" data-kind="textures" title="${esc(t('Fermer'))}">×</button>
         </div>`);
       } else if (tab.kind === 'code') {
         parts.push(`<div class="tab ${isActive('code') ? 'active' : ''}" role="button" tabindex="0" data-action="select-tab" data-kind="code">
-          <span class="tab-kind">Sortie</span><span>Code généré</span>
-          <button type="button" class="tab-close" data-action="close-tab" data-kind="code" title="Fermer">×</button>
+          <span class="tab-kind">${t('Sortie')}</span><span>${t('Code généré')}</span>
+          <button type="button" class="tab-close" data-action="close-tab" data-kind="code" title="${esc(t('Fermer'))}">×</button>
         </div>`);
       }
     }
@@ -230,7 +239,7 @@
   function renderTree() {
     const filter = state.treeFilter.toLowerCase();
     if (!state.project.elements.length) {
-      els.tree.innerHTML = `<div class="tree-empty">Aucun élément pour le moment.<br>Utilisez « ＋ Élément » ou la barre d'outils.</div>`;
+      els.tree.innerHTML = `<div class="tree-empty">${t('Aucun élément pour le moment.')}<br>${t("Utilisez « ＋ Élément » ou la barre d'outils.")}</div>`;
       return;
     }
     const groups = [];
@@ -241,7 +250,7 @@
       if (!items.length && filter) continue;
       groups.push(`
         <div class="tree-group">
-          <div class="tree-group-head">${esc(P.TYPES[type].plural)}<span class="count">${state.project.elements.filter((e) => e.type === type).length}</span></div>
+          <div class="tree-group-head">${esc(t(P.TYPES[type].plural))}<span class="count">${state.project.elements.filter((e) => e.type === type).length}</span></div>
           ${items
             .map(
               (el) => `<button type="button" class="tree-item ${state.active.kind === 'element' && state.active.id === el.id ? 'active' : ''}" data-type="${el.type}" data-action="open-element" data-id="${el.id}">
@@ -253,7 +262,7 @@
     }
     els.tree.innerHTML = groups.length
       ? groups.join('')
-      : `<div class="tree-empty">Aucun élément ne correspond au filtre.</div>`;
+      : `<div class="tree-empty">${t('Aucun élément ne correspond au filtre.')}</div>`;
   }
 
   function renderView() {
@@ -306,20 +315,37 @@
   function elementSummary(el) {
     const p = el.props;
     switch (el.type) {
-      case 'block':
-        return `Bloc placé dans le monde. Groupes : ${p.groups || 'aucun'}. ${p.light ? `Émet une lumière de ${p.light}.` : ''}`;
+      case 'block': {
+        const light = p.light ? ' ' + t('Émet une lumière de {n}.', { n: p.light }) : '';
+        return t('Bloc placé dans le monde. Groupes : {groups}.', { groups: p.groups || t('aucun') }) + light;
+      }
       case 'item':
-        return `Objet d'inventaire empilable par ${p.stackMax || 99}.${p.groups ? ' Groupes : ' + p.groups + '.' : ''}`;
-      case 'tool':
-        return `${(G.TOOL_KINDS.find((k) => k[0] === p.kind) || [, 'Outil'])[1]} en ${
-          (G.TOOL_MATERIALS[p.material] || { label: 'acier' }).label.toLowerCase()
-        } · ${p.uses || 60} utilisations · dégâts ${p.damage || 3}.`;
+        return t("Objet d'inventaire empilable par {n}.{groups}", {
+          n: p.stackMax || 99,
+          groups: p.groups ? t(' Groupes : {groups}.', { groups: p.groups }) : '',
+        });
+      case 'tool': {
+        const kind = t((G.TOOL_KINDS.find((k) => k[0] === p.kind) || [, 'Outil'])[1]);
+        const material = t((G.TOOL_MATERIALS[p.material] || { label: 'Acier' }).label).toLowerCase();
+        return t('{kind} en {material} · {n} utilisations · dégâts {damage}.', {
+          kind,
+          material,
+          n: p.uses || 60,
+          damage: p.damage || 3,
+        });
+      }
       case 'craft':
         return p.kind === 'cooking'
-          ? `Cuisson de ${p.input || '?'} vers ${p.output || '?'}.`
-          : `Recette ${p.kind === 'shapeless' ? 'sans forme' : 'avec forme'} → ${p.output || 'aucun résultat'}.`;
+          ? t('Cuisson de {input} vers {output}.', { input: p.input || '?', output: p.output || '?' })
+          : t(p.kind === 'shapeless' ? 'Recette sans forme → {output}.' : 'Recette avec forme → {output}.', {
+              output: p.output || t('aucun résultat'),
+            });
       case 'formspec':
-        return `Interface à ${(p.components || []).length} composants, ${p.width}×${p.height} unités. S'ouvre avec une commande ou au clic droit.`;
+        return t("Interface à {n} composants, {w}×{h} unités. S'ouvre avec une commande ou au clic droit.", {
+          n: (p.components || []).length,
+          w: p.width,
+          h: p.height,
+        });
       default:
         return '';
     }
@@ -328,7 +354,7 @@
   function thumbHtml(el) {
     const url = P.elementTexture(el, state.project);
     if (url) return `<img src="${url}" alt="" />`;
-    return `<span>${esc(P.TYPES[el.type].glyph)}</span>`;
+    return `<span>${esc(t(P.TYPES[el.type].glyph))}</span>`;
   }
 
   function workspaceCardsHtml() {
@@ -339,10 +365,12 @@
       return (el.props.title || '').toLowerCase().includes(q) || el.name.toLowerCase().includes(q);
     });
     if (!list.length) {
-      return `<div class="empty"><h3>Aucun élément</h3><p>Changez de filtre ou créez un bloc, un item, un outil, une recette ou une formspec.</p>
+      return `<div class="empty"><h3>${t('Aucun élément')}</h3><p>${t(
+        'Changez de filtre ou créez un bloc, un item, un outil, une recette ou une formspec.'
+      )}</p>
         <div class="row">
-          <button type="button" class="tbtn accent" data-action="new-element" data-type="block">Créer un bloc</button>
-          <button type="button" class="tbtn" data-action="new-element" data-type="formspec">Créer une formspec</button>
+          <button type="button" class="tbtn accent" data-action="new-element" data-type="block">${t('Créer un bloc')}</button>
+          <button type="button" class="tbtn" data-action="new-element" data-type="formspec">${t('Créer une formspec')}</button>
         </div></div>`;
     }
     return list
@@ -357,7 +385,7 @@
               <span class="tag">${el.type}</span>
             </div>
           </div>
-          <button type="button" class="del" data-action="delete-element" data-id="${el.id}" title="Supprimer">×</button>
+          <button type="button" class="del" data-action="delete-element" data-id="${el.id}" title="${esc(t('Supprimer'))}">×</button>
         </div>`
       )
       .join('');
@@ -367,35 +395,46 @@
     const p = state.project;
     const total = p.elements.length;
     const chips = [
-      `<button type="button" class="chip ${state.typeFilter === 'all' ? 'active' : ''}" data-action="filter-type" data-type="all">Tous <span class="n">${total}</span></button>`,
+      `<button type="button" class="chip ${state.typeFilter === 'all' ? 'active' : ''}" data-action="filter-type" data-type="all">${t('Tous')} <span class="n">${total}</span></button>`,
     ];
     for (const [type, meta] of Object.entries(P.TYPES)) {
       const n = p.elements.filter((e) => e.type === type).length;
       chips.push(
-        `<button type="button" class="chip ${state.typeFilter === type ? 'active' : ''}" data-action="filter-type" data-type="${type}">${meta.plural} <span class="n">${n}</span></button>`
+        `<button type="button" class="chip ${state.typeFilter === type ? 'active' : ''}" data-action="filter-type" data-type="${type}">${t(
+          meta.plural
+        )} <span class="n">${n}</span></button>`
       );
     }
 
     const body =
       total === 0
         ? `<div class="empty">
-            <h3>Votre mod commence ici</h3>
-            <p>MTC creator génère un mod Luanti complet : blocs, items, outils, recettes de fabrication et interfaces (formspecs). À l'export, vous obtenez un ZIP prêt à déposer dans le dossier <code>mods/</code> de votre monde.</p>
+            <h3>${t('Votre mod commence ici')}</h3>
+            <p>${t(
+              "MTC creator génère un mod Luanti complet : blocs, items, outils, recettes de fabrication et interfaces (formspecs). À l'export, vous obtenez un ZIP prêt à déposer dans le dossier {path} de votre monde.",
+              { path: '<code>mods/</code>' }
+            )}</p>
             <div class="row">
-              <button type="button" class="tbtn accent" data-action="new-element" data-type="block">Créer un bloc</button>
-              <button type="button" class="tbtn" data-action="new-element" data-type="item">Créer un item</button>
-              <button type="button" class="tbtn" data-action="import-mod">Importer un mod</button>
-              <button type="button" class="tbtn" data-action="load-sample">Projet d'exemple</button>
+              <button type="button" class="tbtn accent" data-action="new-element" data-type="block">${t('Créer un bloc')}</button>
+              <button type="button" class="tbtn" data-action="new-element" data-type="item">${t('Créer un item')}</button>
+              <button type="button" class="tbtn" data-action="import-mod">${t('Importer un mod')}</button>
+              <button type="button" class="tbtn" data-action="load-sample">${t("Projet d'exemple")}</button>
             </div>
           </div>`
         : `<div class="card-grid" id="ws-cards">${workspaceCardsHtml()}</div>`;
 
     return `<div class="workspace-head">
         <div>
-          <div class="ws-title">Espace de travail</div>
-          <div class="ws-sub">${esc(p.meta.modName)} · ${total} élément${total > 1 ? 's' : ''} · ${Object.keys(p.textures || {}).length} texture(s)</div>
+          <div class="ws-title">${t('Espace de travail')}</div>
+          <div class="ws-sub">${esc(p.meta.modName)} · ${plural(total, '{n} élément', '{n} éléments')} · ${plural(
+      Object.keys(p.textures || {}).length,
+      '{n} texture',
+      '{n} textures'
+    )}</div>
         </div>
-        <div class="ws-search"><input type="search" id="ws-search" placeholder="Rechercher un élément…" value="${esc(state.search)}" autocomplete="off" /></div>
+        <div class="ws-search"><input type="search" id="ws-search" placeholder="${esc(
+          t('Rechercher un élément…')
+        )}" value="${esc(state.search)}" autocomplete="off" /></div>
       </div>
       <div class="chips">${chips.join('')}</div>
       ${body}`;
@@ -452,10 +491,10 @@
   function textureField(scope, id, field, value, label) {
     const url = P.textureUrl(state.project, value);
     const custom = Object.keys(state.project.textures || {});
-    const options = [['', '— aucune —']];
-    if (custom.length) options.push(['__group__', 'Textures du mod']);
+    const options = [['', t('— aucune —')]];
+    if (custom.length) options.push(['__group__', t('Textures du mod')]);
     for (const name of custom) options.push([name, name]);
-    options.push(['__group__', 'Textures de default']);
+    options.push(['__group__', t('Textures de default')]);
     for (const name of P.DEFAULT_TEXTURES) options.push([name, name]);
     const current = value || '';
     if (current && !options.some(([v]) => v === current)) options.push([current, current]);
@@ -464,7 +503,7 @@
       ${options
         .map(([v, l]) =>
           v === '__group__'
-            ? `<optgroup label="${esc(l)}"></optgroup>`
+            ? `<option value="__group__" disabled>${esc(l)}</option>`
             : `<option value="${esc(v)}" ${v === current ? 'selected' : ''}>${esc(l)}</option>`
         )
         .join('')}
@@ -475,9 +514,11 @@
       <div class="tex-select">
         <div class="tex-preview">${url ? `<img src="${url}" alt="" />` : '—'}</div>
         ${selectHtml}
-        <button type="button" class="tbtn" data-action="upload-texture" data-scope="${scope}" data-id="${esc(id || '')}" data-field="${field}">Importer</button>
+        <button type="button" class="tbtn" data-action="upload-texture" data-scope="${scope}" data-id="${esc(id || '')}" data-field="${field}">${t('Importer')}</button>
       </div>
-      <div class="hint">Les images importées sont exportées dans <code>textures/</code> et référencées par leur nom complet.</div>
+      <div class="hint">${t('Les images importées sont exportées dans {path} et référencées par leur nom complet.', {
+        path: '<code>textures/</code>',
+      })}</div>
     </div>`;
   }
 
@@ -486,7 +527,7 @@
   }
 
   function formspecOptions() {
-    return [['', 'Aucune interaction']].concat(
+    return [['', t('Aucune interaction')]].concat(
       state.project.elements.filter((e) => e.type === 'formspec').map((e) => [e.id, e.props.title || e.name])
     );
   }
@@ -511,19 +552,19 @@
         <div class="registry">${esc(registryName(el))}</div>
       </div>
       <div class="spacer"></div>
-      <button type="button" class="tbtn" data-action="duplicate-element" data-id="${el.id}">Dupliquer</button>
-      <button type="button" class="tbtn" data-action="open-textures">Textures</button>
-      <button type="button" class="tbtn danger-btn" data-action="delete-element" data-id="${el.id}">Supprimer</button>
+      <button type="button" class="tbtn" data-action="duplicate-element" data-id="${el.id}">${t('Dupliquer')}</button>
+      <button type="button" class="tbtn" data-action="open-textures">${t('Textures')}</button>
+      <button type="button" class="tbtn danger-btn" data-action="delete-element" data-id="${el.id}">${t('Supprimer')}</button>
     </div>`;
   }
 
   function codePanel() {
     return `<div class="code-panel">
       <div class="code-panel-head">
-        <span>Code généré pour cet élément</span>
+        <span>${t('Code généré pour cet élément')}</span>
         <span class="file">init.lua</span>
         <span class="spacer"></span>
-        <button type="button" class="link-btn" data-action="copy-element-code">Copier</button>
+        <button type="button" class="link-btn" data-action="copy-element-code">${t('Copier')}</button>
       </div>
       <pre class="code" id="elem-code"></pre>
     </div>`;
@@ -535,7 +576,7 @@
     else if (el.type === 'item') sections = itemSections(el);
     else if (el.type === 'tool') sections = toolSections(el);
     else if (el.type === 'craft') sections = craftSections(el);
-    return `${editorHead(el, P.TYPES[el.type].label)}${itemsDatalist()}<div class="sections">${sections}</div>${codePanel()}`;
+    return `${editorHead(el, t(P.TYPES[el.type].label))}${itemsDatalist()}<div class="sections">${sections}</div>${codePanel()}`;
   }
 
   function blockSections(el) {
@@ -543,55 +584,64 @@
     const id = el.id;
     const texFields =
       p.tilesMode === 'all'
-        ? textureField('el', id, 'texTop', p.texTop, 'Texture du bloc')
-        : textureField('el', id, 'texTop', p.texTop, 'Dessus') +
-          textureField('el', id, 'texSide', p.texSide, 'Côtés') +
-          textureField('el', id, 'texBottom', p.texBottom, 'Dessous');
+        ? textureField('el', id, 'texTop', p.texTop, t('Texture du bloc'))
+        : textureField('el', id, 'texTop', p.texTop, t('Dessus')) +
+          textureField('el', id, 'texSide', p.texSide, t('Côtés')) +
+          textureField('el', id, 'texBottom', p.texBottom, t('Dessous'));
 
     return (
       section(
-        'Identité',
+        t('Identité'),
         `<div class="fields">
-          ${fld('Identifiant', inp('el', id, 'name', el.name), { hint: 'minuscules, chiffres et « _ » — utilisé dans <code>mod:identifiant</code>' })}
-          ${fld('Nom affiché', inp('el', id, 'title', p.title))}
-          ${fld('Son de minage', sel('el', id, 'sounds', p.sounds, G.SOUNDS))}
-          ${fld('Lumière émise', inp('el', id, 'light', p.light, { type: 'number', min: 0, max: 14 }), { hint: '0 = aucune, 14 = comme une torche' })}
+          ${fld(t('Identifiant'), inp('el', id, 'name', el.name), {
+            hint: t('minuscules, chiffres et « _ » — utilisé dans {code}', { code: '<code>mod:identifiant</code>' }),
+          })}
+          ${fld(t('Nom affiché'), inp('el', id, 'title', p.title))}
+          ${fld(t('Son de minage'), sel('el', id, 'sounds', p.sounds, G.SOUNDS.map(([v, l]) => [v, t(l)])))}
+          ${fld(t('Lumière émise'), inp('el', id, 'light', p.light, { type: 'number', min: 0, max: 14 }), { hint: t('0 = aucune, 14 = comme une torche') })}
         </div>`
       ) +
       section(
-        'Apparence',
+        t('Apparence'),
         `<div class="fields">
-          ${fld('Type de textures', sel('el', id, 'tilesMode', p.tilesMode, [['all', 'Une texture pour tout le bloc'], ['per-face', 'Textures différentes par face']]), { full: true })}
+          ${fld(
+            t('Type de textures'),
+            sel('el', id, 'tilesMode', p.tilesMode, [
+              ['all', t('Une texture pour tout le bloc')],
+              ['per-face', t('Textures différentes par face')],
+            ]),
+            { full: true }
+          )}
           ${texFields}
         </div>`
       ) +
       section(
-        'Propriétés physiques',
+        t('Propriétés physiques'),
         `<div class="fields">
-          <div class="full">${chk('el', id, 'walkable', p.walkable, 'Les joueurs marchent dessus (walkable)')}</div>
-          <div class="full">${chk('el', id, 'pointable', p.pointable, 'Peut être visé (pointable)')}</div>
-          <div class="full">${chk('el', id, 'diggable', p.diggable, 'Peut être miné (diggable)')}</div>
-          <div class="full">${chk('el', id, 'sunlight', p.sunlight, 'La lumière du soleil traverse (sunlight_propagates)')}</div>
-          <div class="full">${chk('el', id, 'ground', p.ground, 'Fait partie du sol du monde (is_ground_content)')}</div>
+          <div class="full">${chk('el', id, 'walkable', p.walkable, t('Les joueurs marchent dessus (walkable)'))}</div>
+          <div class="full">${chk('el', id, 'pointable', p.pointable, t('Peut être visé (pointable)'))}</div>
+          <div class="full">${chk('el', id, 'diggable', p.diggable, t('Peut être miné (diggable)'))}</div>
+          <div class="full">${chk('el', id, 'sunlight', p.sunlight, t('La lumière du soleil traverse (sunlight_propagates)'))}</div>
+          <div class="full">${chk('el', id, 'ground', p.ground, t('Fait partie du sol du monde (is_ground_content)'))}</div>
         </div>`
       ) +
       section(
-        'Groupes & minage',
+        t('Groupes & minage'),
         `<div class="fields">
-          ${fld('Groupes', inp('el', id, 'groups', p.groups), {
+          ${fld(t('Groupes'), inp('el', id, 'groups', p.groups), {
             full: true,
-            hint: 'ex. <code>cracky=3, stone=1</code> — détermine l\'outil efficace et la résistance.',
+            hint: t("ex. {code} — détermine l'outil efficace et la résistance.", { code: '<code>cracky=3, stone=1</code>' }),
           })}
-          <div class="full">${chk('el', id, 'dropSelf', p.dropSelf, 'Le bloc se récupère lui-même quand on le mine')}</div>
-          ${!p.dropSelf ? fld('Objet lâché', inp('el', id, 'drop', p.drop, { placeholder: 'default:cobble', list: 'items-datalist' }), { full: true }) : ''}
+          <div class="full">${chk('el', id, 'dropSelf', p.dropSelf, t('Le bloc se récupère lui-même quand on le mine'))}</div>
+          ${!p.dropSelf ? fld(t('Objet lâché'), inp('el', id, 'drop', p.drop, { placeholder: 'default:cobble', list: 'items-datalist' }), { full: true }) : ''}
         </div>`
       ) +
       section(
-        'Interaction',
+        t('Interaction'),
         `<div class="fields">
-          ${fld('Clic droit : ouvrir une formspec', sel('el', id, 'formspecId', p.formspecId, formspecOptions()), {
+          ${fld(t('Clic droit : ouvrir une formspec'), sel('el', id, 'formspecId', p.formspecId, formspecOptions()), {
             full: true,
-            hint: 'La fonction de la formspec est générée avant les blocs, l\'appel est direct.',
+            hint: t("La fonction de la formspec est générée avant les blocs, l'appel est direct."),
           })}
         </div>`,
         true
@@ -604,19 +654,19 @@
     const id = el.id;
     return (
       section(
-        'Identité',
+        t('Identité'),
         `<div class="fields">
-          ${fld('Identifiant', inp('el', id, 'name', el.name), { hint: 'utilisé dans <code>mod:identifiant</code>' })}
-          ${fld('Nom affiché', inp('el', id, 'title', p.title))}
-          ${fld('Taille de pile', inp('el', id, 'stackMax', p.stackMax, { type: 'number', min: 1, max: 65535 }))}
-          ${fld('Groupes', inp('el', id, 'groups', p.groups, { placeholder: 'ex. craftitem=1' }))}
+          ${fld(t('Identifiant'), inp('el', id, 'name', el.name), { hint: t('utilisé dans {code}', { code: '<code>mod:identifiant</code>' }) })}
+          ${fld(t('Nom affiché'), inp('el', id, 'title', p.title))}
+          ${fld(t('Taille de pile'), inp('el', id, 'stackMax', p.stackMax, { type: 'number', min: 1, max: 65535 }))}
+          ${fld(t('Groupes'), inp('el', id, 'groups', p.groups, { placeholder: t('ex. craftitem=1') }))}
         </div>`
       ) +
-      section('Apparence', `<div class="fields">${textureField('el', id, 'texture', p.texture, 'Image d\'inventaire')}</div>`) +
+      section(t('Apparence'), `<div class="fields">${textureField('el', id, 'texture', p.texture, t("Image d'inventaire"))}</div>`) +
       section(
-        'Interaction',
+        t('Interaction'),
         `<div class="fields">
-          ${fld('Clic droit : ouvrir une formspec', sel('el', id, 'formspecId', p.formspecId, formspecOptions()), { full: true })}
+          ${fld(t('Clic droit : ouvrir une formspec'), sel('el', id, 'formspecId', p.formspecId, formspecOptions()), { full: true })}
         </div>`
       )
     );
@@ -627,27 +677,29 @@
     const id = el.id;
     return (
       section(
-        'Identité',
+        t('Identité'),
         `<div class="fields">
-          ${fld('Identifiant', inp('el', id, 'name', el.name))}
-          ${fld('Nom affiché', inp('el', id, 'title', p.title))}
-          ${textureField('el', id, 'texture', p.texture, 'Image d\'inventaire')}
+          ${fld(t('Identifiant'), inp('el', id, 'name', el.name))}
+          ${fld(t('Nom affiché'), inp('el', id, 'title', p.title))}
+          ${textureField('el', id, 'texture', p.texture, t("Image d'inventaire"))}
         </div>`
       ) +
       section(
-        'Caractéristiques',
+        t('Caractéristiques'),
         `<div class="fields">
-          ${fld('Type d\'outil', sel('el', id, 'kind', p.kind, G.TOOL_KINDS))}
-          ${fld('Matériau', sel('el', id, 'material', p.material, Object.entries(G.TOOL_MATERIALS).map(([k, v]) => [k, v.label])), {
-            hint: 'Changer de matériau met à jour les valeurs ci-dessous.',
-          })}
-          ${fld('Utilisations', inp('el', id, 'uses', p.uses, { type: 'number', min: 1 }))}
-          ${fld('Dégâts', inp('el', id, 'damage', p.damage, { type: 'number', min: 0 }))}
-          ${fld('Niveau max (maxlevel)', inp('el', id, 'maxlevel', p.maxlevel, { type: 'number', min: 1, max: 3 }))}
-          ${fld('Intervalle de frappe', inp('el', id, 'punch', p.punch, { type: 'number', min: 0.1, step: 0.1 }))}
+          ${fld(t("Type d'outil"), sel('el', id, 'kind', p.kind, G.TOOL_KINDS.map(([v, l]) => [v, t(l)])))}
+          ${fld(
+            t('Matériau'),
+            sel('el', id, 'material', p.material, Object.entries(G.TOOL_MATERIALS).map(([k, v]) => [k, t(v.label)])),
+            { hint: t('Changer de matériau met à jour les valeurs ci-dessous.') }
+          )}
+          ${fld(t('Utilisations'), inp('el', id, 'uses', p.uses, { type: 'number', min: 1 }))}
+          ${fld(t('Dégâts'), inp('el', id, 'damage', p.damage, { type: 'number', min: 0 }))}
+          ${fld(t('Niveau max (maxlevel)'), inp('el', id, 'maxlevel', p.maxlevel, { type: 'number', min: 1, max: 3 }))}
+          ${fld(t('Intervalle de frappe'), inp('el', id, 'punch', p.punch, { type: 'number', min: 0.1, step: 0.1 }))}
         </div>`
       ) +
-      section('Groupes', `<div class="fields">${fld('Groupes', inp('el', id, 'groups', p.groups), { full: true })}</div>`)
+      section(t('Groupes'), `<div class="fields">${fld(t('Groupes'), inp('el', id, 'groups', p.groups), { full: true })}</div>`)
     );
   }
 
@@ -657,44 +709,55 @@
     let recipeBody = '';
     if (p.kind === 'cooking') {
       recipeBody = `<div class="fields">
-        ${fld('Ingrédient', inp('el', id, 'input', p.input, { placeholder: 'default:iron_lump', list: 'items-datalist' }))}
-        ${fld('Temps de cuisson', inp('el', id, 'cooktime', p.cooktime, { type: 'number', min: 1 }))}
+        ${fld(t('Ingrédient'), inp('el', id, 'input', p.input, { placeholder: 'default:iron_lump', list: 'items-datalist' }))}
+        ${fld(t('Temps de cuisson'), inp('el', id, 'cooktime', p.cooktime, { type: 'number', min: 1 }))}
       </div>`;
     } else if (p.kind === 'shapeless') {
       recipeBody = `<div class="fields">
-        ${fld('Ingrédients (un par ligne)', ta('el', id, 'shapeless', p.shapeless, { placeholder: 'default:stick\ndefault:coal_lump' }), { full: true })}
+        ${fld(t('Ingrédients (un par ligne)'), ta('el', id, 'shapeless', p.shapeless, { placeholder: 'default:stick\ndefault:coal_lump' }), { full: true })}
       </div>`;
     } else {
       const cells = (p.grid || []).map(
-        (v, i) => `<input data-scope="el" data-id="${id}" data-field="grid.${i}" value="${esc(v)}" placeholder="vide" list="items-datalist" />`
+        (v, i) =>
+          `<input data-scope="el" data-id="${id}" data-field="grid.${i}" value="${esc(v)}" placeholder="${esc(t('vide'))}" list="items-datalist" />`
       );
       recipeBody = `<div class="craft-side">
         <div class="craft-grid">${cells.join('')}</div>
         <div class="field" style="flex:1;min-width:180px">
-          <label>Disposition</label>
-          <div class="hint">Cases vides autorisées. Les lignes et colonnes vides sont retirées à la génération.<br><br>Utilisez des identifiants complets, ex. <code>default:stick</code>.</div>
+          <label>${t('Disposition')}</label>
+          <div class="hint">${t('Cases vides autorisées. Les lignes et colonnes vides sont retirées à la génération.<br><br>Utilisez des identifiants complets, ex. {code}.', {
+            code: '<code>default:stick</code>',
+          })}</div>
         </div>
       </div>`;
     }
 
     return (
       section(
-        'Recette',
+        t('Recette'),
         `<div class="fields">
-          ${fld('Identifiant', inp('el', id, 'name', el.name))}
-          ${fld('Nom', inp('el', id, 'title', p.title))}
-          ${fld('Type', sel('el', id, 'kind', p.kind, [['shaped', 'Avec forme (grille 3×3)'], ['shapeless', 'Sans forme'], ['cooking', 'Cuisson']]), { full: true })}
+          ${fld(t('Identifiant'), inp('el', id, 'name', el.name))}
+          ${fld(t('Nom'), inp('el', id, 'title', p.title))}
+          ${fld(
+            t('Type'),
+            sel('el', id, 'kind', p.kind, [
+              ['shaped', t('Avec forme (grille 3×3)')],
+              ['shapeless', t('Sans forme')],
+              ['cooking', t('Cuisson')],
+            ]),
+            { full: true }
+          )}
         </div>
         <div style="height:12px"></div>
         ${recipeBody}`,
         true
       ) +
       section(
-        'Résultat',
+        t('Résultat'),
         `<div class="fields">
-          ${fld('Objet produit', inp('el', id, 'output', p.output, { placeholder: 'mymod:mon_item', list: 'items-datalist' }), {
+          ${fld(t('Objet produit'), inp('el', id, 'output', p.output, { placeholder: 'mymod:mon_item', list: 'items-datalist' }), {
             full: true,
-            hint: 'Identifiant complet, éventuellement suivi d\'une quantité : <code>mymod:item 2</code>.',
+            hint: t("Identifiant complet, éventuellement suivi d'une quantité : {code}.", { code: '<code>mymod:item 2</code>' }),
           })}
         </div>`,
         true
@@ -712,46 +775,46 @@
     const adds = Object.entries(P.FS_COMPONENTS)
       .map(
         ([type, def]) =>
-          `<button type="button" data-action="add-fs-comp" data-type="${type}" title="${esc(def.title)}">${esc(def.label)}</button>`
+          `<button type="button" data-action="add-fs-comp" data-type="${type}" title="${esc(t(def.title))}">${esc(t(def.label))}</button>`
       )
       .join('');
 
     return `${editorHead(el, 'Formspec')}
       <div class="section" style="margin-bottom:14px">
-        <h4>Interface</h4>
+        <h4>${t('Interface')}</h4>
         <div class="fields">
-          ${fld('Identifiant', inp('el', id, 'name', el.name))}
-          ${fld('Titre', inp('el', id, 'title', p.title))}
-          ${fld('Largeur (unités)', inp('el', id, 'width', p.width, { type: 'number', min: 2, max: 30, step: 0.5 }))}
-          ${fld('Hauteur (unités)', inp('el', id, 'height', p.height, { type: 'number', min: 2, max: 30, step: 0.5 }))}
+          ${fld(t('Identifiant'), inp('el', id, 'name', el.name))}
+          ${fld(t('Titre'), inp('el', id, 'title', p.title))}
+          ${fld(t('Largeur (unités)'), inp('el', id, 'width', p.width, { type: 'number', min: 2, max: 30, step: 0.5 }))}
+          ${fld(t('Hauteur (unités)'), inp('el', id, 'height', p.height, { type: 'number', min: 2, max: 30, step: 0.5 }))}
           ${fld(
-            'Couleur de fond',
+            t('Couleur de fond'),
             `<div class="inline-row">
               <input type="color" data-scope="el" data-id="${id}" data-field="bgcolor" value="${esc(p.bgcolor || '#202020')}" style="width:42px;height:28px;padding:0;border:1px solid #35373d;background:#17181a;border-radius:4px" />
               <input type="text" class="grow" data-scope="el" data-id="${id}" data-field="bgcolor" value="${esc(p.bgcolor || '#202020')}" />
             </div>`,
-            { full: true, hint: 'Équivalent de <code>bgcolor[#couleur;false]</code>.' }
+            { full: true, hint: t('Équivalent de {code}.', { code: '<code>bgcolor[#couleur;false]</code>' }) }
           )}
         </div>
       </div>
       <div class="fs-layout">
         <div class="fs-stage-wrap">
           <div class="fs-stage-head">
-            <span class="ws-sub">Glissez pour placer · poignée en bas à droite pour redimensionner</span>
+            <span class="ws-sub">${t('Glissez pour placer · poignée en bas à droite pour redimensionner')}</span>
             <span class="spacer"></span>
-            <span class="ws-sub">1 unité = ${FS_UNIT} px</span>
+            <span class="ws-sub">${t('1 unité = {n} px', { n: FS_UNIT })}</span>
           </div>
           <div class="fs-stage-scroll"><div class="fs-stage" id="fs-stage"></div></div>
         </div>
         <div>
           <div class="section" style="margin-bottom:12px">
-            <h4>Composants</h4>
+            <h4>${t('Composants')}</h4>
             <div class="fs-comp-list" id="fs-comp-list"></div>
           </div>
           <div class="section">
-            <h4>Ajouter</h4>
+            <h4>${t('Ajouter')}</h4>
             <div class="add-comp-grid">${adds}</div>
-            <div class="hint" style="margin-top:4px">Les propriétés du composant sélectionné s'affichent dans le panneau de droite.</div>
+            <div class="hint" style="margin-top:4px">${t("Les propriétés du composant sélectionné s'affichent dans le panneau de droite.")}</div>
           </div>
         </div>
       </div>
@@ -828,7 +891,7 @@
       }
       case 'field':
         cls.push('fs-chrome', 'fs-wide');
-        inner = `<span style="color:#4b4b4b">${esc(c.text || 'Champ')}</span>`;
+        inner = `<span style="color:#4b4b4b">${esc(c.text || t('Champ'))}</span>`;
         break;
       case 'textlist':
         cls.push('fs-chrome', 'fs-wide');
@@ -844,7 +907,7 @@
         break;
       case 'dropdown':
         cls.push('fs-chrome', 'fs-wide');
-        inner = `<span style="color:#4b4b4b">${esc((String(c.items || '').split('\n')[0] || 'Menu'))}</span><span style="margin-left:auto;color:#555">▾</span>`;
+        inner = `<span style="color:#4b4b4b">${esc(String(c.items || '').split('\n')[0] || t('Menu'))}</span><span style="margin-left:auto;color:#555">▾</span>`;
         extra = 'justify-content:flex-start;gap:4px;';
         break;
       default:
@@ -852,7 +915,7 @@
     }
 
     return `<div class="${cls.join(' ')} ${selected ? 'sel' : ''}" data-fs-comp="${c.id}" style="${style}${extra}">${inner}
-      <span class="fs-handle" data-fs-resize="${c.id}" title="Redimensionner"></span>
+      <span class="fs-handle" data-fs-resize="${c.id}" title="${esc(t('Redimensionner'))}"></span>
     </div>`;
   }
 
@@ -874,23 +937,30 @@
       ? comps
           .map(
             (c) => `<div class="fs-comp ${c.id === state.fsSelection ? 'active' : ''}" data-action="select-fs-comp" data-id="${c.id}">
-              <span class="kind">${esc((P.FS_COMPONENTS[c.type] || {}).label || c.type)}</span>
+              <span class="kind">${esc(t((P.FS_COMPONENTS[c.type] || {}).label) || c.type)}</span>
               <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.text || c.name || '')}</span>
               <span class="nm">${c.x},${c.y}</span>
             </div>`
           )
           .join('')
-      : '<div class="hint">Aucun composant. Ajoutez-en avec les boutons ci-dessous.</div>';
+      : `<div class="hint">${t('Aucun composant. Ajoutez-en avec les boutons ci-dessous.')}</div>`;
   }
 
   function formspecInspectorHtml(el) {
     const comp = (el.props.components || []).find((c) => c.id === state.fsSelection);
     if (!comp) {
-      return `<div class="insp-section"><h5>Formspec</h5>
-        <div class="insp-note" style="padding:0">Taille ${el.props.width}×${el.props.height} unités, ${(el.props.components || []).length} composant(s).<br><br>Sélectionnez un composant dans l'aperçu ou dans la liste pour modifier ses propriétés.</div>
+      return `<div class="insp-section"><h5>${t('Formspec')}</h5>
+        <div class="insp-note" style="padding:0">${t('Taille {w}×{h} unités, {n} composant(s).', {
+          w: el.props.width,
+          h: el.props.height,
+          n: (el.props.components || []).length,
+        })}<br><br>${t("Sélectionnez un composant dans l'aperçu ou dans la liste pour modifier ses propriétés.")}</div>
       </div>
-      <div class="insp-section"><h5>Ouverture en jeu</h5>
-        <div class="insp-note" style="padding:0">Une commande <code>/${esc(G.slug(state.project.meta.modName + '_' + el.name))}</code> est générée. Vous pouvez aussi lier cette formspec à un bloc ou un item depuis son éditeur.</div>
+      <div class="insp-section"><h5>${t('Ouverture en jeu')}</h5>
+        <div class="insp-note" style="padding:0">${t(
+          'Une commande {code} est générée. Vous pouvez aussi lier cette formspec à un bloc ou un item depuis son éditeur.',
+          { code: `<code>/${esc(G.slug(state.project.meta.modName + '_' + el.name))}</code>` }
+        )}</div>
       </div>`;
     }
 
@@ -898,63 +968,65 @@
     let fields = `<div class="fields">
       ${fld('X', inp('fs', id, 'x', comp.x, { type: 'number', step: 0.25 }))}
       ${fld('Y', inp('fs', id, 'y', comp.y, { type: 'number', step: 0.25 }))}
-      ${fld('Largeur', inp('fs', id, 'w', comp.w, { type: 'number', step: 0.25, min: 0.25 }))}
-      ${fld('Hauteur', inp('fs', id, 'h', comp.h, { type: 'number', step: 0.25, min: 0.25 }))}
+      ${fld(t('Largeur'), inp('fs', id, 'w', comp.w, { type: 'number', step: 0.25, min: 0.25 }))}
+      ${fld(t('Hauteur'), inp('fs', id, 'h', comp.h, { type: 'number', step: 0.25, min: 0.25 }))}
     </div>`;
 
     if (['label', 'vertlabel', 'button', 'button_exit', 'image_button', 'field', 'textlist', 'checkbox', 'dropdown'].includes(comp.type)) {
       fields += `<div class="fields" style="margin-top:10px">
-        ${fld('Texte', inp('fs', id, 'text', comp.text), { full: true })}
+        ${fld(t('Texte'), inp('fs', id, 'text', comp.text), { full: true })}
       </div>`;
     }
     if (['button', 'button_exit', 'image_button', 'field', 'textlist', 'checkbox', 'dropdown'].includes(comp.type)) {
       fields += `<div class="fields" style="margin-top:10px">
-        ${fld('Nom du champ', inp('fs', id, 'name', comp.name), { full: true, hint: 'transmis à <code>on_player_receive_fields</code>' })}
+        ${fld(t('Nom du champ'), inp('fs', id, 'name', comp.name), { full: true, hint: t('transmis à {code}', { code: '<code>on_player_receive_fields</code>' }) })}
       </div>`;
     }
     if (comp.type === 'image' || comp.type === 'image_button') {
-      fields += `<div style="margin-top:10px">${textureField('fs', id, 'tex', comp.tex, 'Texture')}</div>`;
+      fields += `<div style="margin-top:10px">${textureField('fs', id, 'tex', comp.tex, t('Texture'))}</div>`;
     }
     if (comp.type === 'item_image') {
       fields += `<div class="fields" style="margin-top:10px">
-        ${fld('Item', inp('fs', id, 'item', comp.item, { list: 'items-datalist' }), { full: true })}
+        ${fld(t('Item'), inp('fs', id, 'item', comp.item, { list: 'items-datalist' }), { full: true })}
       </div>${itemsDatalist()}`;
     }
     if (comp.type === 'box') {
       fields += `<div class="fields" style="margin-top:10px">
-        ${fld('Couleur', `<div class="inline-row"><input type="color" data-scope="fs" data-id="${id}" data-field="color" value="${esc(comp.color || '#000000')}" style="width:42px;height:28px;padding:0;border:1px solid #35373d;background:#17181a;border-radius:4px" /><input class="grow" type="text" data-scope="fs" data-id="${id}" data-field="color" value="${esc(comp.color || '#000000')}" /></div>`, { full: true })}
+        ${fld(t('Couleur'), `<div class="inline-row"><input type="color" data-scope="fs" data-id="${id}" data-field="color" value="${esc(comp.color || '#000000')}" style="width:42px;height:28px;padding:0;border:1px solid #35373d;background:#17181a;border-radius:4px" /><input class="grow" type="text" data-scope="fs" data-id="${id}" data-field="color" value="${esc(comp.color || '#000000')}" /></div>`, { full: true })}
       </div>`;
     }
     if (comp.type === 'list') {
       fields += `<div class="fields" style="margin-top:10px">
-        ${fld('Inventaire', sel('fs', id, 'inv', comp.inv, [['current_player', 'current_player'], ['context', 'context'], ['detached', 'detached']]))}
-        ${fld('Nom de liste', inp('fs', id, 'list', comp.list))}
-        ${fld('Slots affichés', inp('fs', id, 'count', comp.count, { type: 'number', min: 1 }))}
+        ${fld(t('Inventaire'), sel('fs', id, 'inv', comp.inv, [['current_player', 'current_player'], ['context', 'context'], ['detached', 'detached']]))}
+        ${fld(t('Nom de liste'), inp('fs', id, 'list', comp.list))}
+        ${fld(t('Slots affichés'), inp('fs', id, 'count', comp.count, { type: 'number', min: 1 }))}
       </div>`;
     }
     if (comp.type === 'textlist' || comp.type === 'dropdown') {
       fields += `<div class="fields" style="margin-top:10px">
-        ${fld('Entrées (une par ligne)', ta('fs', id, 'items', comp.items), { full: true })}
+        ${fld(t('Entrées (une par ligne)'), ta('fs', id, 'items', comp.items), { full: true })}
       </div>`;
     }
     if (comp.type === 'field') {
       fields += `<div class="fields" style="margin-top:10px">
-        ${fld('Valeur par défaut', inp('fs', id, 'value', comp.value), { full: true })}
+        ${fld(t('Valeur par défaut'), inp('fs', id, 'value', comp.value), { full: true })}
       </div>`;
     }
     if (comp.type === 'checkbox') {
-      fields += `<div style="margin-top:10px">${chk('fs', id, 'selected', comp.selected, 'Cochée par défaut')}</div>`;
+      fields += `<div style="margin-top:10px">${chk('fs', id, 'selected', comp.selected, t('Cochée par défaut'))}</div>`;
     }
 
     return `<div class="insp-section">
-        <h5>Composant · ${esc((P.FS_COMPONENTS[comp.type] || {}).label || comp.type)}</h5>
+        <h5>${t('Composant · {type}', { type: esc(t((P.FS_COMPONENTS[comp.type] || {}).label) || comp.type) })}</h5>
         ${fields}
       </div>
       <div class="insp-actions">
-        <button type="button" data-action="duplicate-fs-comp" data-id="${id}">Dupliquer ce composant</button>
-        <button type="button" data-action="delete-fs-comp" data-id="${id}">Supprimer ce composant</button>
+        <button type="button" data-action="duplicate-fs-comp" data-id="${id}">${t('Dupliquer ce composant')}</button>
+        <button type="button" data-action="delete-fs-comp" data-id="${id}">${t('Supprimer ce composant')}</button>
       </div>
-      <div class="insp-note">Astuce : les coordonnées sont en unités formespec (comme <code>label[0.5,0.6;…]</code>).</div>`;
+      <div class="insp-note">${t('Astuce : les coordonnées sont en unités formespec (comme {code}).', {
+        code: '<code>label[0.5,0.6;…]</code>',
+      })}</div>`;
   }
 
   /* ------------------------------------------------------------------ */
@@ -964,32 +1036,42 @@
   function projectInspectorHtml() {
     const m = state.project.meta;
     return `<div class="insp-section">
-        <h5>Projet</h5>
+        <h5>${t('Projet')}</h5>
         <div class="fields">
-          ${fld('Identifiant du mod', inp('meta', '', 'modName', m.modName), { full: true, hint: 'nom du dossier dans <code>mods/</code>' })}
-          ${fld('Titre', inp('meta', '', 'title', m.title), { full: true })}
-          ${fld('Description', ta('meta', '', 'description', m.description), { full: true })}
-          ${fld('Auteur', inp('meta', '', 'author', m.author), { full: true })}
-          ${fld('Licence', inp('meta', '', 'license', m.license), { full: true })}
-          ${fld('Version', inp('meta', '', 'version', m.version), { full: true })}
-          ${fld('Dépendances', ta('meta', '', 'depends', (m.depends || []).join(', ')), { full: true, hint: 'séparées par des virgules, ex. <code>default</code>' })}
-          ${fld('Dépendances optionnelles', ta('meta', '', 'optionalDepends', (m.optionalDepends || []).join(', ')), { full: true })}
+          ${fld(t('Identifiant du mod'), inp('meta', '', 'modName', m.modName), { full: true, hint: t('nom du dossier dans {path}', { path: '<code>mods/</code>' }) })}
+          ${fld(t('Titre'), inp('meta', '', 'title', m.title), { full: true })}
+          ${fld(t('Description'), ta('meta', '', 'description', m.description), { full: true })}
+          ${fld(t('Auteur'), inp('meta', '', 'author', m.author), { full: true })}
+          ${fld(t('Licence'), inp('meta', '', 'license', m.license), { full: true })}
+          ${fld(t('Version'), inp('meta', '', 'version', m.version), { full: true })}
+          ${fld(t('Dépendances'), ta('meta', '', 'depends', (m.depends || []).join(', ')), {
+            full: true,
+            hint: t('séparées par des virgules, ex. {code}', { code: '<code>default</code>' }),
+          })}
+          ${fld(t('Dépendances optionnelles'), ta('meta', '', 'optionalDepends', (m.optionalDepends || []).join(', ')), { full: true })}
         </div>
       </div>
       <div class="insp-section">
-        <h5>Contenu</h5>
+        <h5>${t('Contenu')}</h5>
         <dl class="kv">
-          <dt>Éléments</dt><dd>${state.project.elements.length}</dd>
-          <dt>Textures</dt><dd>${Object.keys(state.project.textures || {}).length}</dd>
-          <dt>Lignes de Lua</dt><dd>${G.genInit(state.project).split('\n').length}</dd>
+          <dt>${t('Éléments')}</dt><dd>${state.project.elements.length}</dd>
+          <dt>${t('Textures')}</dt><dd>${Object.keys(state.project.textures || {}).length}</dd>
+          <dt>${t('Lignes de Lua')}</dt><dd>${G.genInit(state.project).split('\n').length}</dd>
         </dl>
       </div>
       <div class="insp-actions">
-        <button type="button" data-action="export-zip">Exporter le mod en ZIP</button>
-        <button type="button" data-action="view-code">Voir le code généré</button>
-        <button type="button" data-action="load-sample">Charger le projet d'exemple</button>
+        <button type="button" data-action="export-zip">${t('Exporter le mod en ZIP')}</button>
+        <button type="button" data-action="view-code">${t('Voir le code généré')}</button>
+        <button type="button" data-action="load-sample">${t("Charger le projet d'exemple")}</button>
       </div>
-      <div class="insp-note">Les modifications sont enregistrées automatiquement dans ce navigateur. L'export ZIP crée un dossier <code>${esc(m.modName)}/</code> avec <code>mod.conf</code>, <code>init.lua</code> et les textures.</div>`;
+      <div class="insp-note">${t(
+        "Les modifications sont enregistrées automatiquement dans ce navigateur. L'export ZIP crée un dossier {folder} avec {conf}, {init} et les textures.",
+        {
+          folder: `<code>${esc(m.modName)}/</code>`,
+          conf: '<code>mod.conf</code>',
+          init: '<code>init.lua</code>',
+        }
+      )}</div>`;
   }
 
   function elementInspectorHtml(el) {
@@ -997,42 +1079,42 @@
     const p = el.props;
     let rows = '';
     if (el.type === 'block') {
-      rows = `<dt>Texture</dt><dd>${esc(p.texSide || p.texTop || '—')}</dd>
-        <dt>Groupes</dt><dd>${esc(p.groups || '—')}</dd>
-        <dt>Minage</dt><dd>${p.diggable ? 'oui' : 'non'}</dd>`;
+      rows = `<dt>${t('Texture')}</dt><dd>${esc(p.texSide || p.texTop || '—')}</dd>
+        <dt>${t('Groupes')}</dt><dd>${esc(p.groups || '—')}</dd>
+        <dt>${t('Minage')}</dt><dd>${p.diggable ? t('oui') : t('non')}</dd>`;
     } else if (el.type === 'item') {
-      rows = `<dt>Texture</dt><dd>${esc(p.texture || '—')}</dd>
-        <dt>Pile</dt><dd>${esc(p.stackMax)}</dd>`;
+      rows = `<dt>${t('Texture')}</dt><dd>${esc(p.texture || '—')}</dd>
+        <dt>${t('Pile')}</dt><dd>${esc(p.stackMax)}</dd>`;
     } else if (el.type === 'tool') {
-      rows = `<dt>Type</dt><dd>${esc((G.TOOL_KINDS.find((k) => k[0] === p.kind) || [, p.kind])[1])}</dd>
-        <dt>Matériau</dt><dd>${esc((G.TOOL_MATERIALS[p.material] || {}).label || p.material)}</dd>
-        <dt>Dégâts</dt><dd>${esc(p.damage)}</dd>`;
+      rows = `<dt>${t('Type')}</dt><dd>${esc(t((G.TOOL_KINDS.find((k) => k[0] === p.kind) || [, p.kind])[1]))}</dd>
+        <dt>${t('Matériau')}</dt><dd>${esc(t((G.TOOL_MATERIALS[p.material] || {}).label || p.material))}</dd>
+        <dt>${t('Dégâts')}</dt><dd>${esc(p.damage)}</dd>`;
     } else if (el.type === 'craft') {
-      rows = `<dt>Type</dt><dd>${esc(p.kind)}</dd>
-        <dt>Résultat</dt><dd>${esc(p.output || '—')}</dd>`;
+      rows = `<dt>${t('Type')}</dt><dd>${esc(p.kind)}</dd>
+        <dt>${t('Résultat')}</dt><dd>${esc(p.output || '—')}</dd>`;
     }
     return `<div class="insp-section">
-        <h5>Aperçu</h5>
+        <h5>${t('Aperçu')}</h5>
         <div class="insp-preview">
-          <div class="pic">${url ? `<img src="${url}" alt="" />` : esc(P.TYPES[el.type].glyph)}</div>
+          <div class="pic">${url ? `<img src="${url}" alt="" />` : esc(t(P.TYPES[el.type].glyph))}</div>
           <div class="who">
             <b>${esc(p.title || el.name)}</b>
-            <span>${esc(P.TYPES[el.type].label)}</span>
+            <span>${esc(t(P.TYPES[el.type].label))}</span>
           </div>
         </div>
         <dl class="kv">
-          <dt>Registre</dt><dd>${esc(registryName(el))}</dd>
+          <dt>${t('Registre')}</dt><dd>${esc(registryName(el))}</dd>
           ${rows}
         </dl>
       </div>
       <div class="insp-section">
-        <h5>Résumé</h5>
+        <h5>${t('Résumé')}</h5>
         <div class="insp-note" style="padding:0">${esc(elementSummary(el))}</div>
       </div>
       <div class="insp-actions">
-        <button type="button" data-action="duplicate-element" data-id="${el.id}">Dupliquer l'élément</button>
-        <button type="button" data-action="open-textures">Gérer les textures</button>
-        <button type="button" data-action="view-code">Code du mod complet</button>
+        <button type="button" data-action="duplicate-element" data-id="${el.id}">${t("Dupliquer l'élément")}</button>
+        <button type="button" data-action="open-textures">${t('Gérer les textures')}</button>
+        <button type="button" data-action="view-code">${t('Code du mod complet')}</button>
       </div>`;
   }
 
@@ -1040,32 +1122,37 @@
     const textures = Object.entries(state.project.textures || {});
     const size = textures.reduce((sum, [, url]) => sum + url.length, 0);
     return `<div class="insp-section">
-        <h5>Textures</h5>
+        <h5>${t('Textures')}</h5>
         <dl class="kv">
-          <dt>Fichiers</dt><dd>${textures.length}</dd>
-          <dt>Poids des données</dt><dd>${(size / 1024 / 1024).toFixed(2)} Mio</dd>
-          <dt>Dossier d'export</dt><dd>textures/</dd>
+          <dt>${t('Fichiers')}</dt><dd>${textures.length}</dd>
+          <dt>${t('Poids des données')}</dt><dd>${(size / 1024 / 1024).toFixed(2)} Mio</dd>
+          <dt>${t("Dossier d'export")}</dt><dd>textures/</dd>
         </dl>
       </div>
       <div class="insp-actions">
-        <button type="button" data-action="upload-texture">Importer des images</button>
-        <button type="button" data-action="texture-editor">Éditeur de texture</button>
+        <button type="button" data-action="upload-texture">${t('Importer des images')}</button>
+        <button type="button" data-action="texture-editor">${t('Éditeur de texture')}</button>
       </div>
-      <div class="insp-note">Formats acceptés : PNG, JPEG, WebP et GIF. Pour un rendu net dans Luanti, préférez des PNG de 16×16 ou 32×32 pixels.</div>`;
+      <div class="insp-note">${t('Formats acceptés : PNG, JPEG, WebP et GIF. Pour un rendu net dans Luanti, préférez des PNG de 16×16 ou 32×32 pixels.')}</div>`;
   }
 
   function codeInspectorHtml() {
     return `<div class="insp-section">
-        <h5>Fichiers générés</h5>
+        <h5>${t('Fichiers générés')}</h5>
         <dl class="kv">
-          ${state.files.map((f) => `<dt>${esc(f.path.split('/').pop())}</dt><dd>${f.text.split('\n').length} lignes</dd>`).join('')}
-          <dt>Textures</dt><dd>${Object.keys(state.project.textures || {}).length}</dd>
+          ${state.files
+            .map((f) => `<dt>${esc(f.path.split('/').pop())}</dt><dd>${plural(f.text.split('\n').length, '{n} ligne', '{n} lignes')}</dd>`)
+            .join('')}
+          <dt>${t('Textures')}</dt><dd>${Object.keys(state.project.textures || {}).length}</dd>
         </dl>
       </div>
       <div class="insp-actions">
-        <button type="button" data-action="export-zip">Exporter le mod en ZIP</button>
+        <button type="button" data-action="export-zip">${t('Exporter le mod en ZIP')}</button>
       </div>
-      <div class="insp-note">Le fichier <code>init.lua</code> regroupe formspecs, blocs, items, outils puis recettes, dans cet ordre : les fonctions de formspec sont définies avant les nœuds qui les appellent.</div>`;
+      <div class="insp-note">${t(
+        "Le fichier {init} regroupe formspecs, blocs, items, outils puis recettes, dans cet ordre : les fonctions de formspec sont définies avant les nœuds qui les appellent.",
+        { init: '<code>init.lua</code>' }
+      )}</div>`;
   }
 
   /* ------------------------------------------------------------------ */
@@ -1077,15 +1164,18 @@
     const prefix = G.slug(state.project.meta.modName) + '_';
     return `<div class="workspace-head">
         <div>
-          <div class="ws-title">Textures</div>
-          <div class="ws-sub">${textures.length} fichier(s) · exportés dans <code>${esc(prefix)}…</code></div>
+          <div class="ws-title">${t('Textures')}</div>
+          <div class="ws-sub">${t('{n} fichier(s) · exportés dans {prefix}', {
+            n: textures.length,
+            prefix: `<code>${esc(prefix)}…</code>`,
+          })}</div>
         </div>
         <div class="spacer"></div>
-        <button type="button" class="tbtn accent" data-action="upload-texture">Importer des images</button>
+        <button type="button" class="tbtn accent" data-action="upload-texture">${t('Importer des images')}</button>
       </div>
       <div class="dropzone" id="tex-dropzone">
-        <strong>Glissez des images ici</strong>
-        <p>ou utilisez « Importer des images » · PNG, JPEG, WebP, GIF</p>
+        <strong>${t('Glissez des images ici')}</strong>
+        <p>${t('ou utilisez « Importer des images » · PNG, JPEG, WebP, GIF')}</p>
       </div>
       ${
         textures.length
@@ -1098,23 +1188,29 @@
                     <div class="tsize">${textureSizeLabel(url)}</div>
                   </div>
                   <div class="tacts">
-                    <button type="button" data-action="copy-texture-name" data-name="${esc(name)}">Copier</button>
-                    <button type="button" data-action="delete-texture" data-name="${esc(name)}">Supprimer</button>
+                    <button type="button" data-action="copy-texture-name" data-name="${esc(name)}">${t('Copier')}</button>
+                    <button type="button" data-action="delete-texture" data-name="${esc(name)}">${t('Supprimer')}</button>
                   </div>
                 </div>`
               )
               .join('')}</div>`
-          : `<div class="empty"><h3>Aucune texture importée</h3><p>Ajoutez vos images : elles seront copiées dans le dossier <code>textures/</code> du ZIP exporté. Vous pouvez aussi référencer les textures du mod <code>default</code>.</p></div>`
+          : `<div class="empty"><h3>${t('Aucune texture importée')}</h3><p>${t(
+              'Ajoutez vos images : elles seront copiées dans le dossier {path} du ZIP exporté. Vous pouvez aussi référencer les textures du mod {default}.',
+              { path: '<code>textures/</code>', default: '<code>default</code>' }
+            )}</p></div>`
       }
       <div class="empty" style="margin-top:18px">
-        <h3>Éditeur de texture</h3>
-        <p>Le dessin de textures directement dans MTC creator (pinceau, calques, motifs) est prévu pour une prochaine version. En attendant, importez vos PNG ou utilisez les textures de <code>default</code>.</p>
-        <div class="row"><button type="button" class="tbtn" data-action="texture-editor">En savoir plus</button></div>
+        <h3>${t('Éditeur de texture')}</h3>
+        <p>${t(
+          'Le dessin de textures directement dans MTC creator (pinceau, calques, motifs) est prévu pour une prochaine version. En attendant, importez vos PNG ou utilisez les textures de {default}.',
+          { default: '<code>default</code>' }
+        )}</p>
+        <div class="row"><button type="button" class="tbtn" data-action="texture-editor">${t('En savoir plus')}</button></div>
       </div>`;
   }
 
   function textureSizeLabel(url) {
-    return `${Math.max(1, Math.round((url.length * 0.75) / 1024))} Ko`;
+    return `${Math.max(1, Math.round((url.length * 0.75) / 1024))} ${t('Ko')}`;
   }
 
   function bindTextureDrop() {
@@ -1147,12 +1243,12 @@
         P.addTexture(state.project, P.modTextureName(state.project, file.name), dataUrl);
         count++;
       } catch (err) {
-        log(`Impossible de lire ${file.name}.`, 'err');
+        log(t('Impossible de lire {name}.', { name: file.name }), 'err');
       }
     }
     if (count) {
-      log(`${count} texture(s) importée(s).`, 'ok');
-      toast(`${count} texture(s) importée(s)`);
+      log(t('{n} texture(s) importée(s).', { n: count }), 'ok');
+      toast(t('{n} texture(s) importée(s).', { n: count }));
       scheduleSave();
       render();
     }
@@ -1176,11 +1272,11 @@
     const textures = Object.keys(state.project.textures || {});
     return `<div class="workspace-head">
         <div>
-          <div class="ws-title">Code généré</div>
-          <div class="ws-sub">Aperçu de ce que contiendra le ZIP exporté</div>
+          <div class="ws-title">${t('Code généré')}</div>
+          <div class="ws-sub">${t('Aperçu de ce que contiendra le ZIP exporté')}</div>
         </div>
         <div class="spacer"></div>
-        <button type="button" class="tbtn accent" data-action="export-zip">Exporter le ZIP</button>
+        <button type="button" class="tbtn accent" data-action="export-zip">${t('Exporter le ZIP')}</button>
       </div>
       <div class="code-view">
         ${state.files
@@ -1189,16 +1285,20 @@
               <div class="file-head">
                 <span class="fname">${esc(f.path)}</span>
                 <span class="spacer"></span>
-                <button type="button" data-action="copy-code" data-path="${esc(f.path)}">Copier</button>
-                <button type="button" data-action="download-code" data-path="${esc(f.path)}">Télécharger</button>
+                <button type="button" data-action="copy-code" data-path="${esc(f.path)}">${t('Copier')}</button>
+                <button type="button" data-action="download-code" data-path="${esc(f.path)}">${t('Télécharger')}</button>
               </div>
               <pre class="code">${highlightLua(f.text)}</pre>
             </div>`
           )
           .join('')}
         <div class="file-block">
-          <div class="file-head"><span class="fname">textures/</span><span class="spacer"></span><span class="ws-sub">${textures.length} fichier(s)</span></div>
-          <pre class="code">${textures.length ? textures.map((t) => esc(prefixPath(t))).join('\n') : 'Aucune texture pour le moment.'}</pre>
+          <div class="file-head"><span class="fname">textures/</span><span class="spacer"></span><span class="ws-sub">${plural(
+            textures.length,
+            '{n} fichier',
+            '{n} fichiers'
+          )}</span></div>
+          <pre class="code">${textures.length ? textures.map((name) => esc(prefixPath(name))).join('\n') : t('Aucune texture pour le moment.')}</pre>
         </div>
       </div>`;
   }
@@ -1270,7 +1370,7 @@
   function openModal(opts) {
     els.modalRoot.innerHTML = `<div class="modal-back" data-action="close-modal"></div>
       <div class="modal ${opts.wide ? 'wide' : ''}" role="dialog" aria-modal="true">
-        <div class="modal-head">${esc(opts.title)}<button type="button" class="x" data-action="close-modal" title="Fermer">×</button></div>
+        <div class="modal-head">${esc(opts.title)}<button type="button" class="x" data-action="close-modal" title="${esc(t('Fermer'))}">×</button></div>
         <div class="modal-body">${opts.body || ''}</div>
         ${opts.footer ? `<div class="modal-foot">${opts.footer}</div>` : ''}
       </div>`;
@@ -1288,57 +1388,71 @@
     openModal({
       title,
       body: `<p>${message}</p>`,
-      footer: `<button type="button" data-action="close-modal">Annuler</button>
+      footer: `<button type="button" data-action="close-modal">${t('Annuler')}</button>
         <button type="button" class="primary" data-action="confirm-dialog">${esc(confirmLabel)}</button>`,
     });
   }
 
   function newProjectDialog() {
     openModal({
-      title: 'Nouveau projet',
-      body: `<p>Choisissez les informations du mod. Elles deviendront le fichier <code>mod.conf</code>.</p>
+      title: t('Nouveau projet'),
+      body: `<p>${t('Choisissez les informations du mod. Elles deviendront le fichier {file}.', {
+        file: '<code>mod.conf</code>',
+      })}</p>
         <div class="fields">
-          ${fld('Identifiant du mod', '<input type="text" id="np-mod" value="mymod" />', { full: true, hint: 'minuscules, chiffres et « _ ». Ce sera le nom du dossier dans <code>mods/</code>.' })}
-          ${fld('Titre', '<input type="text" id="np-title" value="Mon mod" />', { full: true })}
-          ${fld('Auteur', '<input type="text" id="np-author" value="" placeholder="Votre pseudo" />', { full: true })}
+          ${fld(
+            t('Identifiant du mod'),
+            '<input type="text" id="np-mod" value="mymod" />',
+            { full: true, hint: t('minuscules, chiffres et « _ ». Ce sera le nom du dossier dans {path}.', { path: '<code>mods/</code>' }) }
+          )}
+          ${fld(t('Titre'), `<input type="text" id="np-title" value="${esc(t('Mon mod'))}" />`, { full: true })}
+          ${fld(t('Auteur'), `<input type="text" id="np-author" value="" placeholder="${esc(t('Votre pseudo'))}" />`, { full: true })}
         </div>
-        <p style="margin-top:12px;color:#8f9199;font-size:11.5px">Le projet actuel sera remplacé. Pensez à l'exporter si nécessaire.</p>`,
-      footer: `<button type="button" data-action="close-modal">Annuler</button>
-        <button type="button" class="primary" data-action="create-project">Créer le projet</button>`,
+        <p style="margin-top:12px;color:#8f9199;font-size:11.5px">${t("Le projet actuel sera remplacé. Pensez à l'exporter si nécessaire.")}</p>`,
+      footer: `<button type="button" data-action="close-modal">${t('Annuler')}</button>
+        <button type="button" class="primary" data-action="create-project">${t('Créer le projet')}</button>`,
     });
     setTimeout(() => document.getElementById('np-mod')?.focus(), 30);
   }
 
   function helpDialog() {
     openModal({
-      title: 'Fonctionnement & export',
+      title: t('Fonctionnement & export'),
       wide: true,
-      body: `<h3>Construire un mod</h3>
+      body: `<h3>${t('Construire un mod')}</h3>
         <ul>
-          <li><b>Blocs</b> : texture(s), sons, groupes de minage, lumière, drop, et ouverture d'une formspec au clic droit.</li>
-          <li><b>Items</b> : image d'inventaire, taille de pile, groupes, ouverture d'une formspec à l'utilisation.</li>
-          <li><b>Outils</b> : type, matériau, utilisations, dégâts — les <code>tool_capabilities</code> sont générées comme dans <code>default</code>.</li>
-          <li><b>Recettes</b> : avec forme (grille 3×3), sans forme, ou cuisson.</li>
-          <li><b>Formspecs</b> : éditeur visuel par glisser-déposer, génération d'une fonction et d'une commande de test.</li>
+          ${t("<li><b>Blocs</b> : texture(s), sons, groupes de minage, lumière, drop, et ouverture d'une formspec au clic droit.</li>")}
+          ${t("<li><b>Items</b> : image d'inventaire, taille de pile, groupes, ouverture d'une formspec à l'utilisation.</li>")}
+          ${t("<li><b>Outils</b> : type, matériau, utilisations, dégâts — les <code>tool_capabilities</code> sont générées comme dans <code>default</code>.</li>")}
+          ${t('<li><b>Recettes</b> : avec forme (grille 3×3), sans forme, ou cuisson.</li>')}
+          ${t("<li><b>Formspecs</b> : éditeur visuel par glisser-déposer, génération d'une fonction et d'une commande de test.</li>")}
         </ul>
-        <h3>Textures</h3>
-        <p>Importez vos PNG : chaque fichier est exporté dans <code>textures/</code> et référencé par son nom exact (préfixe du mod compris). Les textures du mod <code>default</code> restent utilisables telles quelles.</p>
-        <h3>Export ZIP</h3>
-        <p>Le ZIP contient un dossier <code>&lt;mod&amp;gt;/</code> avec <code>mod.conf</code>, <code>init.lua</code> et <code>textures/</code>. Copiez ce dossier (ou le ZIP) dans <code>mods/</code>, activez le mod dans un monde, puis testez la commande indiquée par chaque formspec.</p>
-        <h3>Import</h3>
-        <p>« Importer un mod existant » lit un ZIP ou un dossier de mod : <code>mod.conf</code>, textures et définitions <code>register_node</code>, <code>register_craftitem</code>, <code>register_tool</code>, <code>register_craft</code> sont convertis en éléments éditables. L'analyse du Lua est volontairement simple : les définitions très dynamiques peuvent être partiellement reprises.</p>
-        <h3>Raccourcis</h3>
-        <p><code>Ctrl+S</code> enregistre le projet dans le navigateur. L'export ZIP reste le moyen d'obtenir un mod jouable.</p>`,
-      footer: `<button type="button" class="primary" data-action="close-modal">Fermer</button>`,
+        <h3>${t('Textures')}</h3>
+        <p>${t('Importez vos PNG : chaque fichier est exporté dans <code>textures/</code> et référencé par son nom exact (préfixe du mod compris). Les textures du mod <code>default</code> restent utilisables telles quelles.')}</p>
+        <h3>${t('Export ZIP')}</h3>
+        ${t(
+          '<p>Le ZIP contient un dossier <code>&lt;mod&amp;gt;/</code> avec <code>mod.conf</code>, <code>init.lua</code> et <code>textures/</code>. Copiez ce dossier (ou le ZIP) dans <code>mods/</code>, activez le mod dans un monde, puis testez la commande indiquée par chaque formspec.</p>'
+        )}
+        <h3>${t('Import')}</h3>
+        ${t(
+          '<p>« Importer un mod existant » lit un ZIP ou un dossier de mod : <code>mod.conf</code>, textures et définitions <code>register_node</code>, <code>register_craftitem</code>, <code>register_tool</code>, <code>register_craft</code> sont convertis en éléments éditables. L\'analyse du Lua est volontairement simple : les définitions très dynamiques peuvent être partiellement reprises.</p>'
+        )}
+        <h3>${t('Raccourcis')}</h3>
+        ${t("<p><code>Ctrl+S</code> enregistre le projet dans le navigateur. L'export ZIP reste le moyen d'obtenir un mod jouable.</p>")}`,
+      footer: `<button type="button" class="primary" data-action="close-modal">${t('Fermer')}</button>`,
     });
   }
 
   function textureEditorDialog() {
     openModal({
-      title: 'Éditeur de texture',
-      body: `<p>L'éditeur de texture (pinceau, calques, motifs, export PNG) sera ajouté dans une prochaine version de MTC creator.</p>
-        <p>En attendant, vous pouvez importer vos images avec « Importer des images » : elles sont stockées dans le projet et incluses dans le ZIP.</p>`,
-      footer: `<button type="button" data-action="close-modal">Compris</button>`,
+      title: t('Éditeur de texture'),
+      body: `<p>${t(
+        "L'éditeur de texture (pinceau, calques, motifs, export PNG) sera ajouté dans une prochaine version de MTC creator."
+      )}</p>
+        <p>${t(
+          'En attendant, vous pouvez importer vos images avec « Importer des images » : elles sont stockées dans le projet et incluses dans le ZIP.'
+        )}</p>`,
+      footer: `<button type="button" data-action="close-modal">${t('Compris')}</button>`,
     });
   }
 
@@ -1370,8 +1484,8 @@
       const project = P.importFromEntries(entries, file.name);
       confirmImport(project, file.name);
     } catch (err) {
-      log('Import ZIP impossible : ' + err.message, 'err');
-      toast('Import impossible : ' + err.message, 'err');
+      log(t('Import ZIP impossible : {msg}', { msg: err.message }), 'err');
+      toast(t('Import impossible : {msg}', { msg: err.message }), 'err');
     }
   }
 
@@ -1385,10 +1499,10 @@
         });
       }
       const project = P.importFromEntries(entries, files[0]?.webkitRelativePath?.split('/')[0] || 'mod');
-      confirmImport(project, files[0]?.webkitRelativePath?.split('/')[0] || 'dossier importé');
+      confirmImport(project, files[0]?.webkitRelativePath?.split('/')[0] || t('dossier importé'));
     } catch (err) {
-      log('Import du dossier impossible : ' + err.message, 'err');
-      toast('Import impossible : ' + err.message, 'err');
+      log(t('Import du dossier impossible : {msg}', { msg: err.message }), 'err');
+      toast(t('Import impossible : {msg}', { msg: err.message }), 'err');
     }
   }
 
@@ -1396,12 +1510,16 @@
     const counts = Object.keys(P.TYPES)
       .map((type) => [type, project.elements.filter((e) => e.type === type).length])
       .filter(([, n]) => n > 0)
-      .map(([type, n]) => `${n} ${P.TYPES[type].plural.toLowerCase()}`)
+      .map(([type, n]) => `${n} ${t(P.TYPES[type].plural).toLowerCase()}`)
       .join(', ');
     askConfirm(
-      'Importer ce mod ?',
-      `« ${esc(source)} » contient ${counts || 'aucun élément reconnu'} et ${Object.keys(project.textures).length} texture(s).<br><br>Le projet actuel sera remplacé.`,
-      'Remplacer le projet',
+      t('Importer ce mod ?'),
+      t('« {name} » contient {counts} et {n} texture(s).<br><br>Le projet actuel sera remplacé.', {
+        name: esc(source),
+        counts: counts || t('aucun élément reconnu'),
+        n: Object.keys(project.textures).length,
+      }),
+      t('Remplacer le projet'),
       () => {
         state.project = project;
         state.tabs = [];
@@ -1410,8 +1528,15 @@
         P.save(state.project);
         stampSave(true);
         render();
-        log(`Mod importé depuis ${source} : ${project.elements.length} élément(s), ${Object.keys(project.textures).length} texture(s).`, 'ok');
-        toast('Mod importé');
+        log(
+          t('Mod importé depuis {source} : {n} élément(s), {m} texture(s).', {
+            source,
+            n: project.elements.length,
+            m: Object.keys(project.textures).length,
+          }),
+          'ok'
+        );
+        toast(t('Mod importé'));
       }
     );
   }
@@ -1421,20 +1546,20 @@
     try {
       const added = P.ensureDependencies(project);
       if (added.length) {
-        log(`Dépendance(s) ajoutée(s) automatiquement : ${added.join(', ')}.`, 'warn');
+        log(t('Dépendance(s) ajoutée(s) automatiquement : {list}.', { list: added.join(', ') }), 'warn');
       }
-      if (!project.elements.length) log('Le projet ne contient aucun élément : le ZIP sera presque vide.', 'warn');
+      if (!project.elements.length) log(t('Le projet ne contient aucun élément : le ZIP sera presque vide.'), 'warn');
       const missing = P.missingTextures(project);
-      if (missing.length) log(`Textures référencées mais absentes du projet : ${missing.join(', ')}.`, 'warn');
+      if (missing.length) log(t('Textures référencées mais absentes du projet : {list}.', { list: missing.join(', ') }), 'warn');
       const files = await P.buildModFiles(project);
       const blob = await MTC.zip.write(files);
       download(blob, `${G.slug(project.meta.modName) || 'mymod'}.zip`);
-      log(`ZIP exporté : ${files.length} fichier(s), ${(blob.size / 1024).toFixed(1)} Ko.`, 'ok');
-      toast('Mod exporté en ZIP');
+      log(t('ZIP exporté : {n} fichier(s), {size} Ko.', { n: files.length, size: (blob.size / 1024).toFixed(1) }), 'ok');
+      toast(t('Mod exporté en ZIP'));
       render();
     } catch (err) {
-      log('Export impossible : ' + err.message, 'err');
-      toast('Export impossible : ' + err.message, 'err');
+      log(t('Export impossible : {msg}', { msg: err.message }), 'err');
+      toast(t('Export impossible : {msg}', { msg: err.message }), 'err');
     }
   }
 
@@ -1447,8 +1572,8 @@
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     download(blob, `${G.slug(state.project.meta.modName) || 'mymod'}.mtc.json`);
-    log('Projet exporté en .mtc.json.', 'ok');
-    toast('Projet exporté');
+    log(t('Projet exporté en .mtc.json.'), 'ok');
+    toast(t('Projet exporté'));
   }
 
   async function openProjectJson(files) {
@@ -1457,7 +1582,7 @@
     try {
       const data = JSON.parse(await file.text());
       const project = data.project || data;
-      if (!project.meta || !Array.isArray(project.elements)) throw new Error('Format de projet non reconnu.');
+      if (!project.meta || !Array.isArray(project.elements)) throw new Error(t('Format de projet non reconnu.'));
       state.project = project;
       state.project.meta.depends = state.project.meta.depends || ['default'];
       state.project.meta.optionalDepends = state.project.meta.optionalDepends || [];
@@ -1465,11 +1590,11 @@
       state.active = { kind: 'workspace' };
       P.save(state.project);
       render();
-      log(`Projet ouvert : ${file.name}.`, 'ok');
-      toast('Projet ouvert');
+      log(t('Projet ouvert : {name}.', { name: file.name }), 'ok');
+      toast(t('Projet ouvert'));
     } catch (err) {
-      log('Ouverture impossible : ' + err.message, 'err');
-      toast('Fichier de projet invalide', 'err');
+      log(t('Ouverture impossible : {msg}', { msg: err.message }), 'err');
+      toast(t('Fichier de projet invalide'), 'err');
     }
   }
 
@@ -1658,7 +1783,7 @@
         break;
       case 'create-project': {
         const modName = G.slug(document.getElementById('np-mod')?.value || 'mymod') || 'mymod';
-        const title = document.getElementById('np-title')?.value || 'Mon mod';
+        const title = document.getElementById('np-title')?.value || t('Mon mod');
         const author = document.getElementById('np-author')?.value || '';
         const project = P.empty(modName);
         project.meta.title = title;
@@ -1669,7 +1794,7 @@
         P.save(project);
         closeModal();
         render();
-        log(`Nouveau projet « ${title} » (${modName}).`, 'ok');
+        log(t('Nouveau projet « {title} » ({mod}).', { title, mod: modName }), 'ok');
         break;
       }
       case 'open-project':
@@ -1677,12 +1802,16 @@
         break;
       case 'import-mod':
         openModal({
-          title: 'Importer un mod existant',
-          body: `<p>Importez un mod Luanti existant pour le modifier dans MTC creator. Le fichier <code>mod.conf</code>, les textures et les définitions Lua reconnues seront convertis en éléments éditables.</p>
-            <p style="color:#8f9199;font-size:11.5px">Formats : ZIP du mod, ou dossier contenant <code>init.lua</code>. Les formspecs existantes ne sont pas importées.</p>`,
-          footer: `<button type="button" data-action="close-modal">Annuler</button>
-            <button type="button" data-action="import-zip">Fichier ZIP…</button>
-            <button type="button" class="primary" data-action="import-folder">Dossier du mod…</button>`,
+          title: t('Importer un mod existant'),
+          body: `${t(
+            '<p>Importez un mod Luanti existant pour le modifier dans MTC creator. Le fichier <code>mod.conf</code>, les textures et les définitions Lua reconnues seront convertis en éléments éditables.</p>'
+          )}
+            ${t(
+              '<p style="color:#8f9199;font-size:11.5px">Formats : ZIP du mod, ou dossier contenant <code>init.lua</code>. Les formspecs existantes ne sont pas importées.</p>'
+            )}`,
+          footer: `<button type="button" data-action="close-modal">${t('Annuler')}</button>
+            <button type="button" data-action="import-zip">${t('Fichier ZIP…')}</button>
+            <button type="button" class="primary" data-action="import-folder">${t('Dossier du mod…')}</button>`,
         });
         break;
       case 'import-zip':
@@ -1706,7 +1835,7 @@
         const el = P.create(state.project, node.dataset.type || 'block');
         scheduleSave();
         openElement(el.id);
-        log(`${P.TYPES[el.type].label} « ${el.props.title} » créé.`, 'ok');
+        log(t('{type} « {name} » créé.', { type: t(P.TYPES[el.type].label), name: el.props.title }), 'ok');
         break;
       }
       case 'open-element':
@@ -1716,16 +1845,18 @@
         const el = P.find(state.project, node.dataset.id);
         if (!el) break;
         askConfirm(
-          'Supprimer cet élément ?',
-          `« ${esc(el.props.title || el.name)} » sera retiré du projet. Cette action est immédiate (le projet reste enregistré dans le navigateur).`,
-          'Supprimer',
+          t('Supprimer cet élément ?'),
+          t('« {name} » sera retiré du projet. Cette action est immédiate (le projet reste enregistré dans le navigateur).', {
+            name: esc(el.props.title || el.name),
+          }),
+          t('Supprimer'),
           () => {
             P.remove(state.project, el.id);
-            state.tabs = state.tabs.filter((t) => !(t.kind === 'element' && t.id === el.id));
+            state.tabs = state.tabs.filter((tab) => !(tab.kind === 'element' && tab.id === el.id));
             if (state.active.kind === 'element' && state.active.id === el.id) state.active = { kind: 'workspace' };
             scheduleSave();
             render();
-            log(`Élément supprimé : ${el.props.title || el.name}.`, 'warn');
+            log(t('Élément supprimé : {name}.', { name: el.props.title || el.name }), 'warn');
           }
         );
         break;
@@ -1735,7 +1866,7 @@
         if (copy) {
           scheduleSave();
           openElement(copy.id);
-          log(`Élément dupliqué : ${copy.name}.`, 'ok');
+          log(t('Élément dupliqué : {name}.', { name: copy.name }), 'ok');
         }
         break;
       }
@@ -1768,14 +1899,16 @@
       case 'delete-texture': {
         const name = node.dataset.name;
         askConfirm(
-          'Supprimer cette texture ?',
-          `« ${esc(name)} » sera retirée du projet et du ZIP exporté. Les éléments qui l'utilisent afficheront un avertissement.`,
-          'Supprimer',
+          t('Supprimer cette texture ?'),
+          t("« {name} » sera retirée du projet et du ZIP exporté. Les éléments qui l'utilisent afficheront un avertissement.", {
+            name: esc(name),
+          }),
+          t('Supprimer'),
           () => {
             delete state.project.textures[name];
             scheduleSave();
             render();
-            log(`Texture supprimée : ${name}.`, 'warn');
+            log(t('Texture supprimée : {name}.', { name }), 'warn');
           }
         );
         break;
@@ -1849,7 +1982,7 @@
         const file = state.files.find((f) => f.path === node.dataset.path);
         if (file) {
           download(new Blob([file.text], { type: 'text/plain' }), file.path.split('/').pop());
-          log(`Fichier téléchargé : ${file.path.split('/').pop()}.`, 'ok');
+          log(t('Fichier téléchargé : {name}.', { name: file.path.split('/').pop() }), 'ok');
         }
         break;
       }
@@ -1864,9 +1997,9 @@
         break;
       case 'load-sample':
         askConfirm(
-          'Charger le projet d\'exemple ?',
-          'Un mod de démonstration (bloc, item, outil, recette et formspec avec textures générées) remplacera le projet actuel.',
-          'Charger l\'exemple',
+          t("Charger le projet d'exemple ?"),
+          t("Un mod de démonstration (bloc, item, outil, recette et formspec avec textures générées) remplacera le projet actuel."),
+          t("Charger l'exemple"),
           () => {
             state.project = P.sample();
             state.tabs = [];
@@ -1874,8 +2007,8 @@
             state.fsSelection = null;
             scheduleSave();
             render();
-            log('Projet d\'exemple chargé : dalles, cristal, pioche et livre de recettes.', 'ok');
-            toast('Projet d\'exemple chargé');
+            log(t("Projet d'exemple chargé : dalles, cristal, pioche et livre de recettes."), 'ok');
+            toast(t("Projet d'exemple chargé"));
           }
         );
         break;
@@ -1896,9 +2029,9 @@
   async function copyText(text) {
     try {
       await navigator.clipboard.writeText(text);
-      toast('Copié dans le presse-papiers');
+      toast(t('Copié dans le presse-papiers'));
     } catch (err) {
-      log('Copie impossible : le navigateur a refusé l\'accès au presse-papiers.', 'warn');
+      log(t("Copie impossible : le navigateur a refusé l'accès au presse-papiers."), 'warn');
     }
   }
 
@@ -2004,6 +2137,18 @@
         }
       });
     });
+
+    const langSelect = document.getElementById('lang-select');
+    if (langSelect) {
+      langSelect.value = MTC.i18n.getLang();
+      langSelect.addEventListener('change', () => {
+        MTC.i18n.setLang(langSelect.value);
+        closeModal();
+        render();
+        stampSave(true);
+        toast(t("Langue de l'interface : {lang}.", { lang: langSelect.value.toUpperCase() }));
+      });
+    }
   }
 
   /* ------------------------------------------------------------------ */
@@ -2011,14 +2156,19 @@
   /* ------------------------------------------------------------------ */
 
   function boot() {
+    MTC.i18n.init();
     wireEvents();
     render();
     if (!state.project.elements.length) {
-      log('Bienvenue dans MTC creator. Créez un élément, importez un mod existant ou chargez le projet d\'exemple.');
+      log(t("Bienvenue dans MTC creator. Créez un élément, importez un mod existant ou chargez le projet d'exemple."));
     } else {
-      log(`Projet « ${state.project.meta.title || state.project.meta.modName} » restauré depuis ce navigateur.`);
+      log(
+        t('Projet « {name} » restauré depuis ce navigateur.', {
+          name: state.project.meta.title || state.project.meta.modName,
+        })
+      );
     }
-    log('Export : un ZIP contenant mod.conf, init.lua et textures/, prêt pour le dossier mods/.');
+    log(t('Export : un ZIP contenant mod.conf, init.lua et textures/, prêt pour le dossier mods/.'));
     stampSave(true);
   }
 

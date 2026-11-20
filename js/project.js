@@ -3,6 +3,7 @@
   const MTC = (window.MTC = window.MTC || {});
   const P = (MTC.project = {});
   const G = MTC.gen;
+  const tr = (text, vars) => (MTC.i18n ? MTC.i18n.t(text, vars) : text);
 
   P.TYPES = {
     block: { label: 'Bloc', plural: 'Blocs', glyph: 'BLOC' },
@@ -98,8 +99,8 @@
       formatVersion: 1,
       meta: {
         modName: modName || 'mymod',
-        title: 'Mon mod',
-        description: 'Un mod Luanti créé avec MTC creator.',
+        title: tr('Mon mod'),
+        description: tr('Un mod Luanti créé avec MTC creator.'),
         author: '',
         license: 'MIT',
         version: '1.0',
@@ -124,28 +125,28 @@
   };
 
   P.create = function (project, type) {
-    const t = P.TYPES[type] ? type : 'block';
+    const kind = P.TYPES[type] ? type : 'block';
     const bases = { block: 'nouveau_bloc', item: 'nouvel_item', tool: 'nouvel_outil', craft: 'nouvelle_recette', formspec: 'nouvelle_gui' };
     const titles = {
-      block: 'Nouveau bloc',
-      item: 'Nouvel item',
-      tool: 'Nouvel outil',
-      craft: 'Nouvelle recette',
-      formspec: 'Nouvelle interface',
+      block: tr('Nouveau bloc'),
+      item: tr('Nouvel item'),
+      tool: tr('Nouvel outil'),
+      craft: tr('Nouvelle recette'),
+      formspec: tr('Nouvelle interface'),
     };
     const el = {
       id: P.uid(),
-      type: t,
-      name: P.uniqueName(project, bases[t]),
-      props: P.defaults(t),
+      type: kind,
+      name: P.uniqueName(project, bases[kind]),
+      props: P.defaults(kind),
     };
-    el.props.title = titles[t];
-    if (t === 'formspec') {
+    el.props.title = titles[kind];
+    if (kind === 'formspec') {
       el.props.components = [
-        P.makeComponent('label', { x: 0.5, y: 0.4, w: 3, h: 0.6, text: 'Mon interface' }),
-        P.makeComponent('button', { x: 0.5, y: 1.4, w: 2.4, h: 0.7, name: 'fermer', text: 'Fermer' }),
+        P.makeComponent('label', { x: 0.5, y: 0.4, w: 3, h: 0.6, text: tr('Mon interface') }),
+        P.makeComponent('button', { x: 0.5, y: 1.4, w: 2.4, h: 0.7, name: 'fermer', text: tr('Fermer') }),
       ];
-      el.props.title = 'Nouvelle interface';
+      el.props.title = tr('Nouvelle interface');
     }
     project.elements.push(el);
     return el;
@@ -203,7 +204,7 @@
       y: 0.5,
       w: def.size[0],
       h: def.size[1],
-      text: def.label,
+      text: tr(def.label),
       name: 'comp_' + type,
       tex: '',
       item: 'default:stone',
@@ -472,7 +473,7 @@
       if (/\/mod\.conf$/i.test(path)) modConfPath = path;
     }
     if (!initPath && modConfPath) initPath = modConfPath.replace(/mod\.conf$/, 'init.lua');
-    if (!initPath) throw new Error('Aucun fichier init.lua trouvé : ce ZIP ne ressemble pas à un mod Luanti.');
+    if (!initPath) throw new Error(tr('Aucun fichier init.lua trouvé : ce ZIP ne ressemble pas à un mod Luanti.'));
 
     const parts = initPath.split('/');
     parts.pop();
@@ -627,9 +628,10 @@
   }
 
   P.sample = function () {
+    const t = tr;
     const project = P.empty('mymod');
-    project.meta.title = 'Mon premier mod';
-    project.meta.description = 'Dalles de pierre, cristaux et une interface de test.';
+    project.meta.title = t('Mon premier mod');
+    project.meta.description = t('Dalles de pierre, cristaux et une interface de test.');
     project.meta.author = 'MTC creator';
     project.meta.depends = ['default'];
 
@@ -675,7 +677,7 @@
       type: 'block',
       name: 'dalle_pierre',
       props: Object.assign(P.defaults('block'), {
-        title: 'Dalle de pierre',
+        title: t('Dalle de pierre'),
         tilesMode: 'all',
         texTop: stoneTex,
         texSide: stoneTex,
@@ -690,7 +692,7 @@
       type: 'item',
       name: 'cristal',
       props: Object.assign(P.defaults('item'), {
-        title: 'Cristal de mese',
+        title: t('Cristal de mese'),
         texture: crystalTex,
         stackMax: 99,
         groups: 'craftitem=1',
@@ -701,7 +703,7 @@
       type: 'tool',
       name: 'pioche_cristal',
       props: Object.assign(P.defaults('tool'), {
-        title: 'Pioche en cristal',
+        title: t('Pioche en cristal'),
         texture: pickaxeTex,
         kind: 'pickaxe',
         material: 'mese',
@@ -715,7 +717,7 @@
       type: 'craft',
       name: 'recette_pioche_cristal',
       props: Object.assign(P.defaults('craft'), {
-        title: 'Pioche en cristal',
+        title: t('Pioche en cristal'),
         output: 'mymod:pioche_cristal',
         grid: ['mymod:cristal', 'mymod:cristal', 'mymod:cristal', '', 'default:stick', '', '', 'default:stick', ''],
       }),
@@ -726,21 +728,21 @@
       type: 'formspec',
       name: 'livre_de_recettes',
       props: Object.assign(P.defaults('formspec'), {
-        title: 'Livre de recettes',
+        title: t('Livre de recettes'),
         width: 9,
         height: 9,
         bgcolor: '#2b2b2b',
         components: [
-          { id: P.uid(), type: 'label', x: 0.5, y: 0.35, w: 4, h: 0.5, text: 'Livre de recettes', name: 'titre' },
+          { id: P.uid(), type: 'label', x: 0.5, y: 0.35, w: 4, h: 0.5, text: t('Livre de recettes'), name: 'titre' },
           { id: P.uid(), type: 'image', x: 7.4, y: 0.2, w: 1, h: 1, text: '', tex: crystalTex, name: 'img' },
           { id: P.uid(), type: 'box', x: 0.4, y: 1.1, w: 8.2, h: 3.1, color: '#1b1b1b', name: 'cadre', w2: 0 },
-          { id: P.uid(), type: 'textlist', x: 0.6, y: 1.3, w: 3.6, h: 2.7, text: '', items: 'Pioche en cristal\nDalle de pierre', name: 'recettes' },
+          { id: P.uid(), type: 'textlist', x: 0.6, y: 1.3, w: 3.6, h: 2.7, text: '', items: `${t('Pioche en cristal')}\n${t('Dalle de pierre')}`, name: 'recettes' },
           { id: P.uid(), type: 'item_image', x: 4.6, y: 1.4, w: 1.4, h: 1.4, item: 'mymod:pioche_cristal', name: 'apercu' },
           { id: P.uid(), type: 'list', x: 4.6, y: 3.0, w: 3, h: 1, inv: 'current_player', list: 'main', count: 3, name: 'inv' },
-          { id: P.uid(), type: 'button', x: 0.5, y: 4.5, w: 2.4, h: 0.7, name: 'valider', text: 'Fabriquer' },
-          { id: P.uid(), type: 'button_exit', x: 3.1, y: 4.5, w: 2.4, h: 0.7, name: 'fermer', text: 'Fermer' },
-          { id: P.uid(), type: 'field', x: 0.5, y: 5.4, w: 4, h: 0.8, name: 'filtre', text: 'Filtrer', value: '' },
-          { id: P.uid(), type: 'checkbox', x: 0.5, y: 6.4, w: 3, h: 0.6, name: 'montrer', text: 'Afficher les détails', selected: true },
+          { id: P.uid(), type: 'button', x: 0.5, y: 4.5, w: 2.4, h: 0.7, name: 'valider', text: t('Fabriquer') },
+          { id: P.uid(), type: 'button_exit', x: 3.1, y: 4.5, w: 2.4, h: 0.7, name: 'fermer', text: t('Fermer') },
+          { id: P.uid(), type: 'field', x: 0.5, y: 5.4, w: 4, h: 0.8, name: 'filtre', text: t('Filtrer'), value: '' },
+          { id: P.uid(), type: 'checkbox', x: 0.5, y: 6.4, w: 3, h: 0.6, name: 'montrer', text: t('Afficher les détails'), selected: true },
         ],
       }),
     });

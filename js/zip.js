@@ -2,6 +2,7 @@
    Écriture : DEFLATE natif si disponible, sinon STORE. Lecture : STORE + DEFLATE. */
 (function () {
   const MTC = (window.MTC = window.MTC || {});
+  const t = (text, vars) => (MTC.i18n ? MTC.i18n.t(text, vars) : text);
   const enc = new TextEncoder();
   const dec = new TextDecoder('utf-8');
 
@@ -40,7 +41,7 @@
 
   async function inflateRaw(bytes) {
     if (typeof DecompressionStream !== 'function') {
-      throw new Error('Ce navigateur ne peut pas décompresser les fichiers ZIP.');
+      throw new Error(t('Ce navigateur ne peut pas décompresser les fichiers ZIP.'));
     }
     const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
     return new Uint8Array(await new Response(stream).arrayBuffer());
@@ -155,7 +156,7 @@
         break;
       }
     }
-    if (eocd < 0) throw new Error('Archive ZIP invalide (fin de répertoire introuvable).');
+    if (eocd < 0) throw new Error(t('Archive ZIP invalide (fin de répertoire introuvable).'));
 
     const count = view.getUint16(eocd + 10, true);
     let ptr = view.getUint32(eocd + 16, true);
@@ -183,7 +184,7 @@
       let data;
       if (method === 0) data = raw.slice();
       else if (method === 8) data = await inflateRaw(raw);
-      else throw new Error(`Compression ZIP non prise en charge (méthode ${method}) pour ${name}.`);
+      else throw new Error(t('Compression ZIP non prise en charge (méthode {method}) pour {name}.', { method, name }));
 
       entries.push({ name, data });
     }
