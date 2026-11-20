@@ -340,6 +340,39 @@
     'Télécharger': 'Download',
     'Aucune texture pour le moment.': 'No textures yet.',
 
+    /* --- menu principal et bibliothèque de projets --- */
+    'Mes projets': 'My projects',
+    'Mes projets — MTC creator': 'My projects — MTC creator',
+    'Projets': 'Projects',
+    'Ouvrez un projet existant ou créez-en un nouveau. Les projets sont enregistrés dans ce navigateur.':
+      'Open an existing project or create a new one. Projects are saved in this browser.',
+    'Aucun projet pour le moment': 'No projects yet',
+    'Créez votre premier mod : donnez-lui un nom, une description et une capture d’écran pour le retrouver ici.':
+      'Create your first mod: give it a name, a description and a screenshot so you can find it here.',
+    'Aucune description.': 'No description.',
+    'Ouvrir ce projet': 'Open this project',
+    'modifié le {date}': 'modified {date}',
+    'Nom du projet': 'Project name',
+    'Description': 'Description',
+    'Décrivez votre mod en une phrase.': 'Describe your mod in one sentence.',
+    'Capture d’écran': 'Screenshot',
+    'Choisir une image…': 'Choose an image…',
+    'Retirer': 'Remove',
+    'Aucune image': 'No image',
+    'PNG, JPG ou WebP. L’image est recadrée en 16:9 (640 px de large).':
+      'PNG, JPG or WebP. The image is cropped to 16:9 (640 px wide).',
+    'Dossier du mod : {path}': 'Mod folder: {path}',
+    'Choisissez un nom, une description et une capture d’écran. Le dossier du mod est déduit du nom.':
+      'Choose a name, a description and a screenshot. The mod folder is derived from the name.',
+    'Projet introuvable.': 'Project not found.',
+    'Projet « {name} » ouvert.': 'Project “{name}” opened.',
+    'Projet créé': 'Project created',
+    'Image illisible.': 'Could not read the image.',
+    'Menu principal : {n} projet enregistré.': 'Main menu: {n} saved project.',
+    'Menu principal : {n} projets enregistrés.': 'Main menu: {n} saved projects.',
+    'Bienvenue dans MTC creator. Créez votre premier projet pour commencer.':
+      'Welcome to MTC creator. Create your first project to get started.',
+
     /* --- dialogues --- */
     'Annuler': 'Cancel',
     'Créer le projet': 'Create project',
@@ -347,6 +380,8 @@
     'Votre pseudo': 'Your nickname',
     'Choisissez les informations du mod. Elles deviendront le fichier {file}.':
       'Choose the mod information. It becomes the {file} file.',
+    'Les projets restent dans ce navigateur : le projet actuel n’est pas remplacé, il reste dans le menu principal.':
+      'Projects stay in this browser: the current project is not replaced, it remains in the main menu.',
     "Le projet actuel sera remplacé. Pensez à l'exporter si nécessaire.":
       'The current project will be replaced. Export it first if needed.',
     'Importer un mod existant': 'Import an existing mod',

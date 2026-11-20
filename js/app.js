@@ -33,12 +33,13 @@
   const state = {
     project: P.load() || P.empty('mymod'),
     tabs: [],
-    active: { kind: 'workspace' },
+    active: { kind: 'home' },
     typeFilter: 'all',
     search: '',
     treeFilter: '',
     fsSelection: null,
     pendingTexture: null,
+    pendingScreenshot: '',
     drag: null,
     files: [],
     confirm: null,
@@ -173,14 +174,18 @@
 
   function render() {
     const scroll = els.viewhost.scrollTop;
+    const home = state.active.kind === 'home';
+    els.app.classList.toggle('home-mode', home);
     renderChip();
     renderTabs();
     renderTree();
     renderView();
     renderInspector();
     renderRail();
-    els.menubarTitle.textContent = `${state.project.meta.title || state.project.meta.modName} · ${state.project.meta.modName} — MTC creator`;
-    els.viewhost.scrollTop = scroll;
+    els.menubarTitle.textContent = home
+      ? t('Mes projets — MTC creator')
+      : `${state.project.meta.title || state.project.meta.modName} · ${state.project.meta.modName} — MTC creator`;
+    els.viewhost.scrollTop = home ? 0 : scroll;
   }
 
   function renderChip() {
@@ -198,6 +203,10 @@
   }
 
   function renderTabs() {
+    if (state.active.kind === 'home') {
+      els.tabbar.innerHTML = '';
+      return;
+    }
     const parts = [];
     const isActive = (kind, id) => state.active.kind === kind && (id == null || state.active.id === id);
     parts.push(
@@ -266,6 +275,10 @@
   }
 
   function renderView() {
+    if (state.active.kind === 'home') {
+      els.viewhost.innerHTML = homeHtml();
+      return;
+    }
     if (state.active.kind === 'workspace') {
       els.viewhost.innerHTML = workspaceHtml();
     } else if (state.active.kind === 'element') {
@@ -290,6 +303,10 @@
   }
 
   function renderInspector() {
+    if (state.active.kind === 'home') {
+      els.inspector.innerHTML = '';
+      return;
+    }
     if (state.active.kind === 'element') {
       const el = activeElement();
       if (el) {
@@ -452,6 +469,79 @@
       </div>
       <div class="chips">${chips.join('')}</div>
       ${body}`;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* menu principal (bibliothèque de projets)                            */
+  /* ------------------------------------------------------------------ */
+
+  function formatDate(iso) {
+    const date = iso ? new Date(iso) : new Date();
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  function initials(text) {
+    const letters = String(text || '')
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((word) => word.charAt(0))
+      .join('')
+      .toUpperCase();
+    return letters || '?';
+  }
+
+  function homeHtml() {
+    const list = P.library();
+    const cards = list
+      .map((entry) => {
+        const p = entry.project || {};
+        const count = (p.elements || []).length;
+        const shot = entry.screenshot
+          ? `<img src="${esc(entry.screenshot)}" alt="" />`
+          : `<span class="proj-initials">${esc(initials(entry.title))}</span>`;
+        return `<button type="button" class="proj-card" data-action="open-library-project" data-id="${esc(
+          entry.id
+        )}" title="${esc(t('Ouvrir ce projet'))}">
+          <div class="proj-shot">${shot}</div>
+          <div class="proj-body">
+            <div class="proj-title">${esc(entry.title)}</div>
+            <div class="proj-desc">${esc(entry.description || t('Aucune description.'))}</div>
+            <div class="proj-meta">${esc((p.meta || {}).modName || '')} · ${plural(
+          count,
+          '{n} élément',
+          '{n} éléments'
+        )} · ${t('modifié le {date}', { date: formatDate(entry.updatedAt) })}</div>
+          </div>
+        </button>`;
+      })
+      .join('');
+
+    const empty = `<div class="empty">
+        <h3>${t('Aucun projet pour le moment')}</h3>
+        <p>${t(
+          'Créez votre premier mod : donnez-lui un nom, une description et une capture d’écran pour le retrouver ici.'
+        )}</p>
+        <div class="row"><button type="button" class="tbtn accent" data-action="new-project">＋ ${t(
+          'Nouveau projet'
+        )}</button></div>
+      </div>`;
+
+    return `<div class="home">
+        <div class="home-head">
+          <div>
+            <h2>${t('Mes projets')}</h2>
+            <p class="home-sub">${t(
+              'Ouvrez un projet existant ou créez-en un nouveau. Les projets sont enregistrés dans ce navigateur.'
+            )}</p>
+          </div>
+          <button type="button" class="tbtn accent home-new" data-action="new-project">＋ ${t(
+            'Nouveau projet'
+          )}</button>
+        </div>
+        ${list.length ? `<div class="project-grid">${cards}</div>` : empty}
+      </div>`;
   }
 
   /* ------------------------------------------------------------------ */
@@ -1413,26 +1503,108 @@
     });
   }
 
+  function shotPreviewHtml() {
+    return state.pendingScreenshot ? `<img src="${state.pendingScreenshot}" alt="" />` : `<span>${t('Aucune image')}</span>`;
+  }
+
+  function uniqueModName(base) {
+    const used = new Set(
+      P.library()
+        .map((entry) => (((entry.project || {}).meta) || {}).modName)
+        .filter(Boolean)
+    );
+    let name = base;
+    let i = 2;
+    while (used.has(name)) name = `${base}_${i++}`;
+    return name;
+  }
+
+  function imageToScreenshot(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(reader.error || new Error('read'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('decode'));
+        img.onload = () => {
+          const W = 640;
+          const H = 360;
+          const canvas = document.createElement('canvas');
+          canvas.width = W;
+          canvas.height = H;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#1f2023';
+          ctx.fillRect(0, 0, W, H);
+          const scale = Math.max(W / (img.width || W), H / (img.height || H));
+          const w = (img.width || W) * scale;
+          const h = (img.height || H) * scale;
+          ctx.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+          try {
+            resolve(canvas.toDataURL('image/jpeg', 0.82));
+          } catch (e) {
+            resolve(reader.result);
+          }
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
   function newProjectDialog() {
+    P.save(state.project);
+    state.pendingScreenshot = '';
     openModal({
       title: t('Nouveau projet'),
-      body: `<p>${t('Choisissez les informations du mod. Elles deviendront le fichier {file}.', {
-        file: '<code>mod.conf</code>',
-      })}</p>
+      body: `<p>${t(
+        'Choisissez un nom, une description et une capture d’écran. Le dossier du mod est déduit du nom.'
+      )}</p>
         <div class="fields">
           ${fld(
-            t('Identifiant du mod'),
-            '<input type="text" id="np-mod" value="mymod" />',
-            { full: true, hint: t('minuscules, chiffres et « _ ». Ce sera le nom du dossier dans {path}.', { path: '<code>mods/</code>' }) }
+            t('Nom du projet'),
+            `<input type="text" id="np-title" value="${esc(t('Mon mod'))}" placeholder="${esc(t('Mon premier mod'))}" />`,
+            { full: true }
           )}
-          ${fld(t('Titre'), `<input type="text" id="np-title" value="${esc(t('Mon mod'))}" />`, { full: true })}
-          ${fld(t('Auteur'), `<input type="text" id="np-author" value="" placeholder="${esc(t('Votre pseudo'))}" />`, { full: true })}
+          ${fld(
+            t('Description'),
+            `<textarea id="np-desc" placeholder="${esc(t('Décrivez votre mod en une phrase.'))}"></textarea>`,
+            { full: true }
+          )}
+          ${fld(
+            t('Capture d’écran'),
+            `<div class="shot-picker">
+              <div class="shot-preview" id="np-shot-preview">${shotPreviewHtml()}</div>
+              <div class="shot-actions">
+                <button type="button" class="tbtn" data-action="pick-screenshot">${t('Choisir une image…')}</button>
+                <button type="button" class="link-btn" data-action="clear-screenshot">${t('Retirer')}</button>
+                <div class="hint">${t('PNG, JPG ou WebP. L’image est recadrée en 16:9 (640 px de large).')}</div>
+              </div>
+            </div>`,
+            { full: true }
+          )}
         </div>
-        <p style="margin-top:12px;color:#8f9199;font-size:11.5px">${t("Le projet actuel sera remplacé. Pensez à l'exporter si nécessaire.")}</p>`,
+        <div class="hint" id="np-slug" style="margin-top:10px">${t('Dossier du mod : {path}', {
+          path: '<code>mymod</code>',
+        })}</div>`,
       footer: `<button type="button" data-action="close-modal">${t('Annuler')}</button>
         <button type="button" class="primary" data-action="create-project">${t('Créer le projet')}</button>`,
     });
-    setTimeout(() => document.getElementById('np-mod')?.focus(), 30);
+    setTimeout(() => {
+      const titleInput = document.getElementById('np-title');
+      const hint = document.getElementById('np-slug');
+      const updateSlug = () => {
+        if (!hint || !titleInput) return;
+        hint.innerHTML = t('Dossier du mod : {path}', {
+          path: `<code>${esc(G.slug(titleInput.value) || 'mymod')}</code>`,
+        });
+      };
+      if (titleInput) {
+        titleInput.focus();
+        titleInput.select();
+        titleInput.addEventListener('input', updateSlug);
+      }
+      updateSlug();
+    }, 30);
   }
 
   function helpDialog() {
@@ -1541,11 +1713,15 @@
       }),
       t('Remplacer le projet'),
       () => {
+        P.save(state.project);
         state.project = project;
         state.tabs = [];
         state.active = { kind: 'workspace' };
         state.fsSelection = null;
-        P.save(state.project);
+        P.adopt(state.project, {
+          title: state.project.meta.title,
+          description: state.project.meta.description,
+        });
         stampSave(true);
         render();
         log(
@@ -1603,12 +1779,16 @@
       const data = JSON.parse(await file.text());
       const project = data.project || data;
       if (!project.meta || !Array.isArray(project.elements)) throw new Error(t('Format de projet non reconnu.'));
+      P.save(state.project);
       state.project = project;
       state.project.meta.depends = state.project.meta.depends || ['default'];
       state.project.meta.optionalDepends = state.project.meta.optionalDepends || [];
       state.tabs = [];
       state.active = { kind: 'workspace' };
-      P.save(state.project);
+      P.adopt(state.project, {
+        title: state.project.meta.title,
+        description: state.project.meta.description,
+      });
       render();
       log(t('Projet ouvert : {name}.', { name: file.name }), 'ok');
       toast(t('Projet ouvert'));
@@ -1801,20 +1981,74 @@
       case 'new-project':
         newProjectDialog();
         break;
-      case 'create-project': {
-        const modName = G.slug(document.getElementById('np-mod')?.value || 'mymod') || 'mymod';
-        const title = document.getElementById('np-title')?.value || t('Mon mod');
-        const author = document.getElementById('np-author')?.value || '';
-        const project = P.empty(modName);
-        project.meta.title = title;
-        project.meta.author = author;
+      case 'go-home':
+        if (state.active.kind !== 'home') P.save(state.project);
+        if (
+          !P.getActiveId() &&
+          (state.project.elements.length || Object.keys(state.project.textures || {}).length)
+        ) {
+          P.adopt(state.project, {
+            title: state.project.meta.title,
+            description: state.project.meta.description,
+          });
+        }
+        state.active = { kind: 'home' };
+        render();
+        break;
+      case 'open-library-project': {
+        P.save(state.project);
+        const project = P.activate(node.dataset.id);
+        if (!project) {
+          toast(t('Projet introuvable.'), 'err');
+          break;
+        }
         state.project = project;
         state.tabs = [];
+        state.fsSelection = null;
         state.active = { kind: 'workspace' };
-        P.save(project);
+        render();
+        log(t('Projet « {name} » ouvert.', { name: project.meta.title || project.meta.modName }), 'ok');
+        break;
+      }
+      case 'pick-screenshot':
+        chooseFile({
+          accept: 'image/*',
+          onFiles: async (files) => {
+            const file = files[0];
+            if (!file) return;
+            try {
+              state.pendingScreenshot = await imageToScreenshot(file);
+              const preview = document.getElementById('np-shot-preview');
+              if (preview) preview.innerHTML = shotPreviewHtml();
+            } catch (err) {
+              toast(t('Image illisible.'), 'err');
+            }
+          },
+        });
+        break;
+      case 'clear-screenshot': {
+        state.pendingScreenshot = '';
+        const preview = document.getElementById('np-shot-preview');
+        if (preview) preview.innerHTML = shotPreviewHtml();
+        break;
+      }
+      case 'create-project': {
+        const title = (document.getElementById('np-title')?.value || '').trim() || t('Mon mod');
+        const description = (document.getElementById('np-desc')?.value || '').trim();
+        const modName = uniqueModName(G.slug(title) || 'mymod');
+        const project = P.empty(modName);
+        project.meta.title = title;
+        if (description) project.meta.description = description;
+        P.adopt(project, { title, description, screenshot: state.pendingScreenshot });
+        state.pendingScreenshot = '';
+        state.project = project;
+        state.tabs = [];
+        state.fsSelection = null;
+        state.active = { kind: 'workspace' };
         closeModal();
         render();
         log(t('Nouveau projet « {title} » ({mod}).', { title, mod: modName }), 'ok');
+        toast(t('Projet créé'));
         break;
       }
       case 'open-project':
@@ -2021,11 +2255,16 @@
           t("Un mod de démonstration (bloc, item, outil, recette et formspec avec textures générées) remplacera le projet actuel."),
           t("Charger l'exemple"),
           () => {
+            P.save(state.project);
             state.project = P.sample();
             state.tabs = [];
             state.active = { kind: 'workspace' };
             state.fsSelection = null;
-            scheduleSave();
+            P.adopt(state.project, {
+              title: state.project.meta.title,
+              description: state.project.meta.description,
+            });
+            stampSave(true);
             render();
             log(t("Projet d'exemple chargé : dalles, cristal, pioche et livre de recettes."), 'ok');
             toast(t("Projet d'exemple chargé"));
@@ -2177,16 +2416,15 @@
 
   function boot() {
     MTC.i18n.init();
+    state.project = P.initLibrary(state.project);
+    state.active = { kind: 'home' };
     wireEvents();
     render();
-    if (!state.project.elements.length) {
-      log(t("Bienvenue dans MTC creator. Créez un élément, importez un mod existant ou chargez le projet d'exemple."));
+    const count = P.library().length;
+    if (count) {
+      log(plural(count, 'Menu principal : {n} projet enregistré.', 'Menu principal : {n} projets enregistrés.'));
     } else {
-      log(
-        t('Projet « {name} » restauré depuis ce navigateur.', {
-          name: state.project.meta.title || state.project.meta.modName,
-        })
-      );
+      log(t('Bienvenue dans MTC creator. Créez votre premier projet pour commencer.'));
     }
     log(t('Export : un ZIP contenant mod.conf, init.lua et textures/, prêt pour le dossier mods/.'));
     stampSave(true);

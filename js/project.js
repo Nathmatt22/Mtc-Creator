@@ -14,6 +14,9 @@
   };
 
   P.STORAGE_KEY = 'mtc-creator:project';
+  P.LIBRARY_KEY = 'mtc-creator:library';
+  P.ACTIVE_KEY = 'mtc-creator:active-project';
+  let activeId = null;
 
   const DEFAULT_TEXTURES = [
     'default_stone.png',
@@ -317,30 +320,157 @@
   };
 
   /* ---------- sauvegarde locale ---------- */
+  function normalize(data) {
+    if (!data || !data.meta) return null;
+    data.meta.depends = Array.isArray(data.meta.depends) ? data.meta.depends : ['default'];
+    data.meta.optionalDepends = Array.isArray(data.meta.optionalDepends) ? data.meta.optionalDepends : [];
+    data.elements = Array.isArray(data.elements) ? data.elements : [];
+    data.textures = data.textures || {};
+    for (const el of data.elements) el.props = Object.assign(P.defaults(el.type), el.props || {});
+    return data;
+  }
+
   P.save = function (project) {
+    let ok = true;
     try {
       localStorage.setItem(P.STORAGE_KEY, JSON.stringify(project));
-      return true;
     } catch (e) {
-      return false;
+      ok = false;
     }
+    if (activeId) P.libraryUpdate(activeId, project);
+    return ok;
   };
 
   P.load = function () {
     try {
       const raw = localStorage.getItem(P.STORAGE_KEY);
       if (!raw) return null;
-      const data = JSON.parse(raw);
-      if (!data || !data.meta) return null;
-      data.meta.depends = Array.isArray(data.meta.depends) ? data.meta.depends : ['default'];
-      data.meta.optionalDepends = Array.isArray(data.meta.optionalDepends) ? data.meta.optionalDepends : [];
-      data.elements = Array.isArray(data.elements) ? data.elements : [];
-      data.textures = data.textures || {};
-      for (const el of data.elements) el.props = Object.assign(P.defaults(el.type), el.props || {});
-      return data;
+      return normalize(JSON.parse(raw));
     } catch (e) {
       return null;
     }
+  };
+
+  /* ---------- bibliothèque de projets ---------- */
+  function readActiveId() {
+    try {
+      return localStorage.getItem(P.ACTIVE_KEY) || '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  P.library = function () {
+    try {
+      const raw = localStorage.getItem(P.LIBRARY_KEY);
+      const list = raw ? JSON.parse(raw) : [];
+      return Array.isArray(list) ? list.filter((entry) => entry && entry.id && entry.project) : [];
+    } catch (e) {
+      return [];
+    }
+  };
+
+  function writeLibrary(list) {
+    try {
+      localStorage.setItem(P.LIBRARY_KEY, JSON.stringify(list));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  P.getActiveId = function () {
+    return activeId;
+  };
+
+  P.setActive = function (id) {
+    activeId = id || null;
+    try {
+      if (activeId) localStorage.setItem(P.ACTIVE_KEY, activeId);
+      else localStorage.removeItem(P.ACTIVE_KEY);
+    } catch (e) {
+      /* stockage indisponible */
+    }
+  };
+
+  P.libraryEntry = function (id) {
+    return P.library().find((entry) => entry.id === id) || null;
+  };
+
+  P.libraryAdd = function (project, opts) {
+    const options = opts || {};
+    const meta = project.meta || {};
+    const list = P.library();
+    const now = new Date().toISOString();
+    const entry = {
+      id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+      title: String(options.title || meta.title || meta.modName || tr('Mon mod')),
+      description: String(options.description != null ? options.description : meta.description || ''),
+      screenshot: options.screenshot || '',
+      createdAt: options.createdAt || now,
+      updatedAt: now,
+      project: JSON.parse(JSON.stringify(project)),
+    };
+    list.unshift(entry);
+    writeLibrary(list);
+    return entry;
+  };
+
+  P.libraryUpdate = function (id, project) {
+    const list = P.library();
+    const entry = list.find((item) => item.id === id);
+    if (!entry) return null;
+    entry.title = project.meta.title || project.meta.modName || entry.title;
+    entry.description = project.meta.description || '';
+    entry.updatedAt = new Date().toISOString();
+    entry.project = JSON.parse(JSON.stringify(project));
+    return writeLibrary(list) ? entry : null;
+  };
+
+  /* Enregistre un projet comme nouvelle entrée et le rend actif. */
+  P.adopt = function (project, opts) {
+    const entry = P.libraryAdd(project, opts);
+    P.setActive(entry.id);
+    P.save(project);
+    return entry;
+  };
+
+  /* Ouvre une entrée de la bibliothèque et en fait le projet actif. */
+  P.activate = function (id) {
+    const entry = P.libraryEntry(id);
+    if (!entry) return null;
+    const project = normalize(JSON.parse(JSON.stringify(entry.project)));
+    if (!project) return null;
+    P.setActive(id);
+    P.save(project);
+    return project;
+  };
+
+  /* Au démarrage : reprend la bibliothèque existante, ou y migre l'ancien projet unique. */
+  P.initLibrary = function (project) {
+    const list = P.library();
+    if (list.length) {
+      const stored = readActiveId();
+      const entry = list.find((item) => item.id === stored) || list[0];
+      activeId = entry.id;
+      try {
+        localStorage.setItem(P.ACTIVE_KEY, entry.id);
+      } catch (e) {
+        /* stockage indisponible */
+      }
+      return normalize(JSON.parse(JSON.stringify(entry.project))) || project;
+    }
+    const hasContent =
+      project &&
+      ((project.elements || []).length > 0 || Object.keys(project.textures || {}).length > 0);
+    if (hasContent) {
+      const entry = P.libraryAdd(project, {
+        title: project.meta.title,
+        description: project.meta.description,
+      });
+      P.setActive(entry.id);
+    }
+    return project;
   };
 
   /* ---------- export ---------- */

@@ -9,12 +9,16 @@
 <body>
 <div id="app">
   <header class="menubar">
-    <div class="brand"><span class="brand-mark">MTC</span><span class="brand-name">creator</span></div>
+    <button type="button" class="brand" data-action="go-home" title="Mes projets" data-i18n-title="Mes projets">
+      <span class="brand-mark">MTC</span><span class="brand-name">creator</span>
+    </button>
 
     <nav class="menus">
       <div class="menu">
         <button class="menu-btn" type="button" data-i18n="Fichier">Fichier</button>
         <div class="menu-panel">
+          <button type="button" data-action="go-home" data-i18n="Mes projets">Mes projets</button>
+          <hr />
           <button type="button" data-action="new-project" data-i18n="Nouveau projet">Nouveau projet</button>
           <button type="button" data-action="open-project" data-i18n="Ouvrir un projet (.mtc.json)">Ouvrir un projet (.mtc.json)</button>
           <button type="button" data-action="import-mod" data-i18n="Importer un mod existant…">Importer un mod existant…</button>
@@ -75,6 +79,7 @@
   <div class="toolbar">
     <div class="toolgroup">
       <span class="tool-label" data-i18n="Projet">Projet</span>
+      <button type="button" class="tbtn" data-action="go-home" title="Mes projets" data-i18n-title="Mes projets" data-i18n="Projets">Projets</button>
       <button type="button" class="tbtn" data-action="new-project" title="Nouveau projet" data-i18n-title="Nouveau projet" data-i18n="Nouveau">Nouveau</button>
       <button type="button" class="tbtn" data-action="import-mod" title="Importer un mod existant" data-i18n-title="Importer un mod existant…" data-i18n="Importer">Importer</button>
       <button type="button" class="tbtn" data-action="save-project" title="Enregistrer (Ctrl+S)" data-i18n-title="Enregistrer (Ctrl+S)" data-i18n="Enregistrer">Enregistrer</button>
