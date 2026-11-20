@@ -202,7 +202,7 @@
     const isActive = (kind, id) => state.active.kind === kind && (id == null || state.active.id === id);
     parts.push(
       `<div class="tab ${isActive('workspace') ? 'active' : ''}" role="button" tabindex="0" data-action="goto-workspace">
-        <span class="tab-kind">${t('Espace')}</span> ${t('Éléments')}
+        <span class="tab-kind">${t('Projet')}</span> ${t("Vue d'ensemble")}
       </div>`
     );
     for (const tab of state.tabs) {
@@ -375,14 +375,14 @@
     }
     return list
       .map(
-        (el) => `<div class="card" data-action="open-element" data-id="${el.id}">
+        (el) => `<div class="card" data-action="open-element" data-id="${el.id}" title="${esc(t("Ouvrir l'éditeur"))}">
           <div class="thumb">${thumbHtml(el)}</div>
           <div class="meta">
             <div class="name">${esc(el.props.title || el.name)}</div>
             <div class="desc">${esc(elementSummary(el))}</div>
             <div class="tags">
+              <span class="tag tag-type">${esc(t(P.TYPES[el.type].label))}</span>
               <span class="tag">${esc(registryName(el))}</span>
-              <span class="tag">${el.type}</span>
             </div>
           </div>
           <button type="button" class="del" data-action="delete-element" data-id="${el.id}" title="${esc(t('Supprimer'))}">×</button>
@@ -414,6 +414,20 @@
               "MTC creator génère un mod Luanti complet : blocs, items, outils, recettes de fabrication et interfaces (formspecs). À l'export, vous obtenez un ZIP prêt à déposer dans le dossier {path} de votre monde.",
               { path: '<code>mods/</code>' }
             )}</p>
+            <ol class="steps">
+              <li><span class="num">1</span><div><b>${t('Créez vos éléments')}</b><span class="txt">${t(
+                'Blocs, items, outils et recettes : chaque élément devient du Lua dans {file}.',
+                { file: '<code>init.lua</code>' }
+              )}</span></div></li>
+              <li><span class="num">2</span><div><b>${t('Ajoutez vos textures')}</b><span class="txt">${t(
+                'Importez vos PNG ou choisissez celles du mod {default} ; elles partent dans {path}.',
+                { default: '<code>default</code>', path: '<code>textures/</code>' }
+              )}</span></div></li>
+              <li><span class="num">3</span><div><b>${t('Exportez en ZIP')}</b><span class="txt">${t(
+                'Déposez le dossier obtenu dans {path}, activez le mod dans un monde et jouez.',
+                { path: '<code>mods/</code>' }
+              )}</span></div></li>
+            </ol>
             <div class="row">
               <button type="button" class="tbtn accent" data-action="new-element" data-type="block">${t('Créer un bloc')}</button>
               <button type="button" class="tbtn" data-action="new-element" data-type="item">${t('Créer un item')}</button>
@@ -550,6 +564,7 @@
       <div>
         <div style="font-size:15px;font-weight:600">${esc(el.props.title || el.name)}</div>
         <div class="registry">${esc(registryName(el))}</div>
+        <div class="head-desc">${esc(elementSummary(el))}</div>
       </div>
       <div class="spacer"></div>
       <button type="button" class="tbtn" data-action="duplicate-element" data-id="${el.id}">${t('Dupliquer')}</button>
@@ -814,7 +829,9 @@
           <div class="section">
             <h4>${t('Ajouter')}</h4>
             <div class="add-comp-grid">${adds}</div>
-            <div class="hint" style="margin-top:4px">${t("Les propriétés du composant sélectionné s'affichent dans le panneau de droite.")}</div>
+            <div class="hint" style="margin-top:4px">${t(
+              "1. Ajoutez un composant · 2. Glissez-le sur la grille · 3. Réglez ses propriétés dans l'inspecteur."
+            )}</div>
           </div>
         </div>
       </div>
@@ -1037,6 +1054,9 @@
     const m = state.project.meta;
     return `<div class="insp-section">
         <h5>${t('Projet')}</h5>
+        <div class="insp-note" style="padding:0 0 10px">${t(
+          'Sélectionnez un élément dans la liste pour modifier ses propriétés ici.'
+        )}</div>
         <div class="fields">
           ${fld(t('Identifiant du mod'), inp('meta', '', 'modName', m.modName), { full: true, hint: t('nom du dossier dans {path}', { path: '<code>mods/</code>' }) })}
           ${fld(t('Titre'), inp('meta', '', 'title', m.title), { full: true })}

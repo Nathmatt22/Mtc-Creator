@@ -11,6 +11,23 @@
     'MTC creator — éditeur de mods pour Luanti': 'MTC creator — mod editor for Luanti',
     'Fichier': 'File',
     'Français': 'French',
+    'Créer': 'Create',
+    "Vue d'ensemble": 'Overview',
+    'Journal': 'Log',
+    "Ouvrir l'éditeur": 'Open editor',
+    'Créez vos éléments': 'Create your elements',
+    'Blocs, items, outils et recettes : chaque élément devient du Lua dans {file}.':
+      'Blocks, items, tools and recipes: each element becomes Lua in {file}.',
+    'Ajoutez vos textures': 'Add your textures',
+    'Importez vos PNG ou choisissez celles du mod {default} ; elles partent dans {path}.':
+      'Import your PNGs or pick textures from the {default} mod; they go to {path}.',
+    'Exportez en ZIP': 'Export as ZIP',
+    'Déposez le dossier obtenu dans {path}, activez le mod dans un monde et jouez.':
+      'Drop the resulting folder into {path}, enable the mod in a world and play.',
+    'Sélectionnez un élément dans la liste pour modifier ses propriétés ici.':
+      'Select an element in the list to edit its properties here.',
+    "1. Ajoutez un composant · 2. Glissez-le sur la grille · 3. Réglez ses propriétés dans l'inspecteur.":
+      '1. Add a component · 2. Drag it onto the grid · 3. Adjust its properties in the inspector.',
     'Nouveau projet': 'New project',
     'Ouvrir un projet (.mtc.json)': 'Open project (.mtc.json)',
     'Importer un mod existant…': 'Import existing mod…',
