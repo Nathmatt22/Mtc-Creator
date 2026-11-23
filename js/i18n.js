@@ -524,6 +524,22 @@
     'BLOC': 'BLOCK',
     'OUTIL': 'TOOL',
     'RECETTE': 'RECIPE',
+
+    /* --- lancer le jeu --- */
+    'Lancer le jeu': 'Play the game',
+    'Lancer le jeu avec le mod du projet': 'Play the game with the project mod',
+    'Chargement du moteur…': 'Loading the engine…',
+    'Installation du mod…': 'Installing the mod…',
+    'Préparation du monde…': 'Preparing the world…',
+    'Lancement…': 'Starting…',
+    'Partie en cours': 'Game running',
+    'Réessayer': 'Retry',
+    'Le jeu a signalé une erreur.': 'The game reported an error.',
+    'erreur inconnue': 'unknown error',
+    "Le jeu n'a pas pu être lancé : {msg}": 'The game could not be started: {msg}',
+    'Jeu : {msg}': 'Game: {msg}',
+    'Lancement du jeu : mod « {mod} » envoyé au monde « {world} ».':
+      'Starting the game: mod “{mod}” sent to world “{world}”.',
   };
 
   const DICTS = { en: EN };

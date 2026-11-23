@@ -95,6 +95,7 @@ svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke
 .lang-select:hover{background:#383b41;border-color:#484b52}
 .lang-select:focus{border-color:var(--accent)}
 .save-state{font-size:11px;color:var(--dim)}
+.play-game{padding:4px 10px;font-size:11.5px}
 
 /* ---------- barre d'outils ---------- */
 .toolbar{
@@ -632,3 +633,16 @@ pre.code .n{color:#f0a97a}
   .menubar-title{display:none}
   .toolbar{overflow-x:auto}
 }
+
+/* ---------- lancer le jeu (iframe Luanti) ---------- */
+.game-panel{position:fixed;inset:0;z-index:400;display:flex;flex-direction:column;background:#0f1012}
+.game-head{
+  display:flex;align-items:center;gap:12px;padding:6px 12px;flex:none;
+  background:var(--chrome);border-bottom:1px solid var(--line);
+}
+.game-title{font-weight:600;font-size:12.5px}
+.game-status{font-size:11.5px;color:var(--muted)}
+.game-status.ok{color:var(--accent-hi)}
+.game-status.err{color:var(--danger)}
+.game-head .spacer{flex:1}
+.game-frame{flex:1;width:100%;height:100%;border:0;display:block;background:#000}

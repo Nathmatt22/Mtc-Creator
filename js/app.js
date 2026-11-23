@@ -1737,18 +1737,27 @@
     );
   }
 
+  /* Construit le ZIP du mod sans le télécharger. */
+  async function buildModZip(project) {
+    const added = P.ensureDependencies(project);
+    if (added.length) {
+      log(t('Dépendance(s) ajoutée(s) automatiquement : {list}.', { list: added.join(', ') }), 'warn');
+    }
+    const files = await P.buildModFiles(project);
+    return { files, blob: await MTC.zip.write(files) };
+  }
+
+  async function exportModZip(project) {
+    return (await buildModZip(project)).blob;
+  }
+
   async function exportZip() {
     const project = state.project;
     try {
-      const added = P.ensureDependencies(project);
-      if (added.length) {
-        log(t('Dépendance(s) ajoutée(s) automatiquement : {list}.', { list: added.join(', ') }), 'warn');
-      }
       if (!project.elements.length) log(t('Le projet ne contient aucun élément : le ZIP sera presque vide.'), 'warn');
       const missing = P.missingTextures(project);
       if (missing.length) log(t('Textures référencées mais absentes du projet : {list}.', { list: missing.join(', ') }), 'warn');
-      const files = await P.buildModFiles(project);
-      const blob = await MTC.zip.write(files);
+      const { blob, files } = await buildModZip(project);
       download(blob, `${G.slug(project.meta.modName) || 'mymod'}.zip`);
       log(t('ZIP exporté : {n} fichier(s), {size} Ko.', { n: files.length, size: (blob.size / 1024).toFixed(1) }), 'ok');
       toast(t('Mod exporté en ZIP'));
@@ -1931,6 +1940,159 @@
   }
 
   /* ------------------------------------------------------------------ */
+  /* lancer le jeu (iframe Luanti hébergée)                              */
+  /* ------------------------------------------------------------------ */
+
+  const LUANTI_URL = 'https://aml-s9xx-box.taildd440a.ts.net/luanti/';
+  const game = { ready: false, pending: null, sent: false };
+
+  /* Nom du dossier du mod dans mods/ : [a-z0-9_], sans « _ » initial, 1 à 64 caractères.
+     G.slug donne le même nom que le dossier du ZIP exporté. */
+  function modDir(name) {
+    const clean = G.slug(name)
+      .slice(0, 64)
+      .replace(/_+$/, '');
+    return clean || 'mymod';
+  }
+
+  /* Nom du monde : tirets conservés, ni « / » ni « \ », sans point initial, 1 à 200 caractères. */
+  function worldName(name) {
+    const clean = String(name || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9_-]+/g, '_')
+      .replace(/^[._-]+/, '')
+      .replace(/_+/g, '_')
+      .slice(0, 200)
+      .replace(/[_-]+$/, '');
+    return clean || 'monde';
+  }
+
+  function gameFrame() {
+    return document.getElementById('luanti-game');
+  }
+
+  function gameStatus(message, kind) {
+    const node = document.getElementById('luanti-status');
+    if (node) {
+      node.textContent = message;
+      node.className = 'game-status' + (kind ? ' ' + kind : '');
+    }
+    const retry = document.getElementById('luanti-retry');
+    if (retry) retry.hidden = kind !== 'err';
+  }
+
+  /* Envoie le ZIP en attente au jeu, une seule fois par lancement. */
+  function sendGame() {
+    const frame = gameFrame();
+    if (!frame || !frame.contentWindow || !game.pending || !game.ready || game.sent) return;
+    const project = state.project;
+    const mod = modDir(project.meta.modName);
+    frame.contentWindow.postMessage(
+      {
+        type: 'luanti:mod',
+        version: 1,
+        mods: [{ name: mod, zip: game.pending }],
+        game: 'minetest_game',
+        world: worldName(project.meta.modName),
+        player: 'invité',
+        play: true,
+      },
+      '*'
+    );
+    game.pending = null;
+    game.sent = true;
+    log(t('Lancement du jeu : mod « {mod} » envoyé au monde « {world} ».', {
+      mod,
+      world: worldName(project.meta.modName),
+    }), 'ok');
+  }
+
+  async function openGame() {
+    if (gameFrame()) return;
+    const panel = document.createElement('div');
+    panel.className = 'game-panel';
+    panel.id = 'luanti-panel';
+    panel.innerHTML = `
+      <div class="game-head">
+        <span class="game-title">${t('Lancer le jeu')}</span>
+        <span class="game-status" id="luanti-status">${t('Chargement du moteur…')}</span>
+        <span class="spacer"></span>
+        <button type="button" class="tbtn" id="luanti-retry" data-action="retry-game" hidden>${t('Réessayer')}</button>
+        <button type="button" class="tbtn" data-action="close-game">${t('Fermer')}</button>
+      </div>
+      <iframe id="luanti-game" class="game-frame" src="${LUANTI_URL}"
+        allow="fullscreen; gamepad; clipboard-write" title="Luanti"></iframe>`;
+    document.body.appendChild(panel);
+    game.ready = false;
+    game.sent = false;
+    game.pending = null;
+    await prepareGame();
+  }
+
+  async function prepareGame() {
+    try {
+      game.pending = await exportModZip(state.project);
+      if (game.ready) sendGame();
+    } catch (err) {
+      gameStatus(t("Le jeu n'a pas pu être lancé : {msg}", { msg: err.message }), 'err');
+      log(t('Jeu : {msg}', { msg: err.message }), 'err');
+    }
+  }
+
+  async function retryGame() {
+    if (!gameFrame()) {
+      await openGame();
+      return;
+    }
+    game.sent = false;
+    game.pending = null;
+    gameStatus(t('Chargement du moteur…'));
+    await prepareGame();
+  }
+
+  function closeGame() {
+    const panel = document.getElementById('luanti-panel');
+    if (panel) panel.remove();
+    game.ready = false;
+    game.pending = null;
+    game.sent = false;
+  }
+
+  function onGameMessage(e) {
+    const frame = gameFrame();
+    if (!frame || e.source !== frame.contentWindow) return;
+    const data = e.data || {};
+    if (data.type === 'luanti:ready') {
+      game.ready = true;
+      if (game.pending) sendGame();
+      return;
+    }
+    if (data.type !== 'luanti:status') return;
+    switch (data.phase) {
+      case 'installing':
+        gameStatus(t('Installation du mod…'));
+        break;
+      case 'preparing':
+        gameStatus(t('Préparation du monde…'));
+        break;
+      case 'installed':
+        gameStatus(t('Lancement…'));
+        break;
+      case 'playing':
+        gameStatus(t('Partie en cours'), 'ok');
+        break;
+      case 'error':
+        gameStatus(data.message || t('Le jeu a signalé une erreur.'), 'err');
+        log(t('Jeu : {msg}', { msg: data.message || t('erreur inconnue') }), 'err');
+        break;
+      default:
+        break;
+    }
+  }
+
+  /* ------------------------------------------------------------------ */
   /* événements                                                          */
   /* ------------------------------------------------------------------ */
 
@@ -2084,6 +2246,15 @@
         break;
       case 'export-zip':
         await exportZip();
+        break;
+      case 'launch-game':
+        await openGame();
+        break;
+      case 'close-game':
+        closeGame();
+        break;
+      case 'retry-game':
+        await retryGame();
         break;
       case 'new-element': {
         const el = P.create(state.project, node.dataset.type || 'block');
@@ -2363,6 +2534,8 @@
         exportZip();
       }
     });
+
+    window.addEventListener('message', onGameMessage);
 
     els.treeFilter.addEventListener('input', () => {
       state.treeFilter = els.treeFilter.value;
