@@ -641,7 +641,10 @@ pre.code .n{color:#f0a97a}
   background:var(--chrome);border-bottom:1px solid var(--line);
 }
 .game-title{font-weight:600;font-size:12.5px}
-.game-status{font-size:11.5px;color:var(--muted)}
+.game-status{
+  font-size:11.5px;color:var(--muted);line-height:1.35;
+  white-space:normal;max-width:min(72ch,62vw);
+}
 .game-status.ok{color:var(--accent-hi)}
 .game-status.err{color:var(--danger)}
 .game-head .spacer{flex:1}

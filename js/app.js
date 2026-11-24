@@ -1983,6 +1983,19 @@
     if (retry) retry.hidden = kind !== 'err';
   }
 
+  /* Le moteur (WASM multi-thread) ne démarre que dans une page cross-origin isolated :
+     COOP: same-origin + COEP: require-corp sur cette page, et l'iframe doit déléguer
+     la fonctionnalité « cross-origin-isolated » (attribut allow ci-dessous). */
+  function gameIsolation() {
+    if (window.crossOriginIsolated) return true;
+    gameStatus(
+      t("Page non cross-origin isolated : le serveur doit envoyer « Cross-Origin-Opener-Policy: same-origin » et « Cross-Origin-Embedder-Policy: require-corp » (python3 serve.py, ou fichier _headers)."),
+      'err'
+    );
+    log(t('Jeu : page non cross-origin isolated, lancement impossible.'), 'err');
+    return false;
+  }
+
   /* Envoie le ZIP en attente au jeu, une seule fois par lancement. */
   function sendGame() {
     const frame = gameFrame();
@@ -2023,11 +2036,12 @@
         <button type="button" class="tbtn" data-action="close-game">${t('Fermer')}</button>
       </div>
       <iframe id="luanti-game" class="game-frame" src="${LUANTI_URL}"
-        allow="fullscreen; gamepad; clipboard-write" title="Luanti"></iframe>`;
+        allow="cross-origin-isolated; fullscreen; gamepad; clipboard-write" title="Luanti"></iframe>`;
     document.body.appendChild(panel);
     game.ready = false;
     game.sent = false;
     game.pending = null;
+    if (!gameIsolation()) return;
     await prepareGame();
   }
 
@@ -2049,6 +2063,7 @@
     game.sent = false;
     game.pending = null;
     gameStatus(t('Chargement du moteur…'));
+    if (!gameIsolation()) return;
     await prepareGame();
   }
 
