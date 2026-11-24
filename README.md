@@ -9,5 +9,10 @@ sinon le moteur refuse de démarrer.
 
     python3 serve.py 3000
 
-`python3 -m http.server` ne suffit pas (pas d'en-têtes). En production, envoyez ces deux
-en-têtes ; le fichier `_headers` les déclare pour Netlify et Cloudflare Pages.
+`python3 -m http.server` ne suffit pas (pas d'en-têtes).
+
+## Hébergement (Vercel)
+
+Les deux en-têtes sont déclarés dans `vercel.json` et s'appliquent à toutes les routes.
+Sans eux, le moteur répond « Cette page n'est pas cross-origin isolated » et n'installe
+pas le mod.

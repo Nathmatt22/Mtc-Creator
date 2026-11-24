@@ -1989,7 +1989,7 @@
   function gameIsolation() {
     if (window.crossOriginIsolated) return true;
     gameStatus(
-      t("Page non cross-origin isolated : le serveur doit envoyer « Cross-Origin-Opener-Policy: same-origin » et « Cross-Origin-Embedder-Policy: require-corp » (python3 serve.py, ou fichier _headers)."),
+      t("Page non cross-origin isolated : le serveur doit envoyer « Cross-Origin-Opener-Policy: same-origin » et « Cross-Origin-Embedder-Policy: require-corp » (voir vercel.json, ou python3 serve.py en local)."),
       'err'
     );
     log(t('Jeu : page non cross-origin isolated, lancement impossible.'), 'err');

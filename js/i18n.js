@@ -538,8 +538,8 @@
     'erreur inconnue': 'unknown error',
     "Le jeu n'a pas pu être lancé : {msg}": 'The game could not be started: {msg}',
     'Jeu : {msg}': 'Game: {msg}',
-    "Page non cross-origin isolated : le serveur doit envoyer « Cross-Origin-Opener-Policy: same-origin » et « Cross-Origin-Embedder-Policy: require-corp » (python3 serve.py, ou fichier _headers).":
-      'Page is not cross-origin isolated: the server must send “Cross-Origin-Opener-Policy: same-origin” and “Cross-Origin-Embedder-Policy: require-corp” (python3 serve.py, or the _headers file).',
+    "Page non cross-origin isolated : le serveur doit envoyer « Cross-Origin-Opener-Policy: same-origin » et « Cross-Origin-Embedder-Policy: require-corp » (voir vercel.json, ou python3 serve.py en local).":
+      'Page is not cross-origin isolated: the server must send “Cross-Origin-Opener-Policy: same-origin” and “Cross-Origin-Embedder-Policy: require-corp” (see vercel.json, or python3 serve.py locally).',
     'Jeu : page non cross-origin isolated, lancement impossible.':
       'Game: page is not cross-origin isolated, cannot start.',
     'Lancement du jeu : mod « {mod} » envoyé au monde « {world} ».':
