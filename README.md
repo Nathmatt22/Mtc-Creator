@@ -16,3 +16,9 @@ sinon le moteur refuse de démarrer.
 Les deux en-têtes sont déclarés dans `vercel.json` et s'appliquent à toutes les routes.
 Sans eux, le moteur répond « Cette page n'est pas cross-origin isolated » et n'installe
 pas le mod.
+
+Le serveur du jeu répond `Cross-Origin-Resource-Policy: same-origin`, ce qui interdit son
+affichage dans une page `COEP: require-corp`. L'iframe porte donc l'attribut `credentialless`,
+qui lève cette règle (contexte éphémère, Chromium uniquement). Pour s'en passer — stockage
+persistant et Firefox/Safari — le serveur du jeu doit envoyer
+`Cross-Origin-Resource-Policy: cross-origin` sur `/luanti/`.

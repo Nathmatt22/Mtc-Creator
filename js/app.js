@@ -2022,6 +2022,9 @@
     }), 'ok');
   }
 
+  /* Le jeu répond « Cross-Origin-Resource-Policy: same-origin » : sous COEP require-corp, la frame
+     serait bloquée. L'attribut credentialless lève cette règle (contexte éphémère, Chromium).
+     Si le serveur du jeu envoyait CORP: cross-origin, l'attribut deviendrait inutile. */
   async function openGame() {
     if (gameFrame()) return;
     const panel = document.createElement('div');
@@ -2035,7 +2038,7 @@
         <button type="button" class="tbtn" id="luanti-retry" data-action="retry-game" hidden>${t('Réessayer')}</button>
         <button type="button" class="tbtn" data-action="close-game">${t('Fermer')}</button>
       </div>
-      <iframe id="luanti-game" class="game-frame" src="${LUANTI_URL}"
+      <iframe id="luanti-game" class="game-frame" src="${LUANTI_URL}" credentialless
         allow="cross-origin-isolated; fullscreen; gamepad; clipboard-write" title="Luanti"></iframe>`;
     document.body.appendChild(panel);
     game.ready = false;
